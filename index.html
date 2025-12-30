@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OWM Waterpolo Manager</title>
+
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0b2a4a" />
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="header">
+    <div class="wrap">
+      <h1>OWM Waterpolo Manager (MVP)</h1>
+      <p class="sub">Gratis PWA via GitHub Pages — te installeren via “Zet op beginscherm”.</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+
+    <section class="card">
+      <h2>Data status</h2>
+      <div id="dataStatus" class="hint">Seed laden…</div>
+    </section>
+
+    <section class="card">
+      <h2>Training</h2>
+
+      <div class="row">
+        <label>Focus</label>
+        <select id="trainFocus">
+          <option value="ATTACK">Aanval</option>
+          <option value="DEFENSE">Verdediging</option>
+          <option value="BALANCED">Balanced</option>
+          <option value="CONDITIONING">Conditioning</option>
+          <option value="REST">Rust</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <label>Intensiteit</label>
+        <select id="trainIntensity">
+          <option value="LOW">Low</option>
+          <option value="NORMAL" selected>Normal</option>
+          <option value="HIGH">High</option>
+        </select>
+      </div>
+
+      <div class="btns">
+        <button id="btnNextDay">Volgende dag (train)</button>
+        <button class="ghost" id="btnResetProgress">Reset voortgang</button>
+      </div>
+
+      <div id="trainSummary" class="hint"></div>
+
+      <div class="tableWrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Speler</th><th>Club</th><th>Pos</th>
+              <th>Aanval</th><th>Verd</th><th>Overall</th>
+              <th>Fitness</th><th>Vorm</th><th>Blessure</th>
+            </tr>
+          </thead>
+          <tbody id="trainTableBody"></tbody>
+        </table>
+      </div>
+      <p class="subtle">Potential wordt in deze tabel bewust niet getoond (zit wel in de berekening).</p>
+    </section>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
