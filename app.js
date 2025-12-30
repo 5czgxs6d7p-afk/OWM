@@ -1,9 +1,9 @@
 // OWM Waterpolo Manager (MVP)
 // Training + growth engine (no age, only potential)
-// Stores progress in localStorage
+// Stores progress in localStorage (incl. stat growth)
 
 const SEED_URL = "seed.json";
-const PROGRESS_KEY = "owm_progress_v2";
+const PROGRESS_KEY = "owm_progress_v3"; // bump zodat je schoon start
 
 const TRAINING = {
   intensity: {
@@ -13,14 +13,8 @@ const TRAINING = {
   }
 };
 
-function clamp(min, max, v) {
-  return Math.max(min, Math.min(max, v));
-}
-
-function round1(v) {
-  return Math.round(v * 10) / 10;
-}
-
+function clamp(min, max, v) { return Math.max(min, Math.min(max, v)); }
+function round1(v) { return Math.round(v * 10) / 10; }
 function toNum(v, fallback = 0) {
   const n = Number(v);
   return Number.isFinite(n) ? n : fallback;
@@ -31,29 +25,22 @@ function overallFromAttackDefense(attack, defense) {
 }
 
 function potMult(potential) {
-  const map = { 1: 0.75, 2: 0.9, 3: 1.0, 4: 1.12, 5: 1.25 };
+  const map = { 1: 0.75, 2: 0.90, 3: 1.00, 4: 1.12, 5: 1.25 };
   return map[potential] ?? 1.0;
 }
 
-function capStat(potential) {
-  return 62 + 8 * (potential ?? 3); // pot1=70 ... pot5=100
-}
-
+function capStat(potential) { return 62 + 8 * (potential ?? 3); }
 function capMult(stat, potential) {
   const cap = capStat(potential);
   const d = Math.max(0, stat - cap);
   return 1 / (1 + 0.14 * d);
 }
-
-function fatigueMult(fitness) {
-  return clamp(0.55, 1.0, (fitness ?? 92) / 100);
-}
+function fatigueMult(fitness) { return clamp(0.55, 1.0, (fitness ?? 92) / 100); }
 
 function repeatMult(lastFocusStreak, newFocus) {
   if (!lastFocusStreak || lastFocusStreak.focus !== newFocus) return 1.0;
   if (lastFocusStreak.days === 1) return 0.85;
-  if (lastFocusStreak.days >= 2) return 0.7;
-  return 1.0;
+  return 0.70; // day 3+
 }
 
 function injuryChance(loadSum3) {
@@ -62,11 +49,10 @@ function injuryChance(loadSum3) {
   if (loadSum3 <= 33) return 0.03;
   return 0.06;
 }
-
 function injuryDurationDays(intensityKey) {
   const r = Math.random();
-  if (intensityKey === "HIGH") return r < 0.3 ? 5 : r < 0.65 ? 3 : 2;
-  if (intensityKey === "NORMAL") return r < 0.2 ? 4 : r < 0.6 ? 2 : 1;
+  if (intensityKey === "HIGH") return r < 0.30 ? 5 : r < 0.65 ? 3 : 2;
+  if (intensityKey === "NORMAL") return r < 0.20 ? 4 : r < 0.60 ? 2 : 1;
   return r < 0.15 ? 3 : 1;
 }
 
@@ -86,20 +72,19 @@ function initRuntimeState(seedPlayers, existing = {}) {
   return state;
 }
 
-function applyTrainingDay(player, dyn, plan) {
-  const p = player; // mutate ok in MVP
+function applyTrainingDay(p, dyn, plan) {
   const d = { ...dyn };
 
-  // Ensure numeric stats (seed kan ints bevatten; we werken intern met floats)
-  p.attack = toNum(p.attack, 0);
-  p.defense = toNum(p.defense, 0);
-  p.potential = toNum(p.potential, 3);
+  // Ensure numeric
+  const attack = toNum(p.attack, 0);
+  const defense = toNum(p.defense, 0);
+  const potential = toNum(p.potential, 3);
 
   // Injury tick
   if (d.injuredDays > 0) {
     d.injuredDays -= 1;
     d.fitness = clamp(0, 100, d.fitness + 8);
-    return { playerPatch: {}, dynPatch: d, log: [`Blessure: nog ${d.injuredDays} dag(en). Fitness +8.`] };
+    return { nextAttack: attack, nextDefense: defense, dynPatch: d, log: `Blessure: nog ${d.injuredDays} dag(en).` };
   }
 
   const focus = plan?.focus ?? "REST";
@@ -114,30 +99,30 @@ function applyTrainingDay(player, dyn, plan) {
   else d.lastFocusStreak = { focus, days: 1 };
 
   // Fitness update
-  let fitnessDelta = 6 - cost; // baseline +6
-  if (focus === "REST") fitnessDelta = 14; // 6 + 8
+  let fitnessDelta = 6 - cost;
+  if (focus === "REST") fitnessDelta = 14;
   if (focus === "CONDITIONING") fitnessDelta = 6 - cost + 4;
   d.fitness = clamp(0, 100, d.fitness + fitnessDelta);
 
   // Rolling 3-day load
-  const newLoad3 = [...(d.trainingLoad3 || [0, 0, 0]).slice(1), cost];
+  const newLoad3 = [...(d.trainingLoad3 || [0,0,0]).slice(1), cost];
   d.trainingLoad3 = newLoad3;
   const loadSum3 = newLoad3.reduce((s, x) => s + x, 0);
 
   // Multipliers
-  const pm = potMult(p.potential);
+  const pm = potMult(potential);
   const fm = fatigueMult(d.fitness);
-  const cmA = capMult(p.attack, p.potential);
-  const cmD = capMult(p.defense, p.potential);
+  const cmA = capMult(attack, potential);
+  const cmD = capMult(defense, potential);
 
-  // Gains (floats)
+  // Gains
   let dA = 0, dD = 0;
 
   if (focus === "ATTACK") {
-    dA = TP * 0.02 * pm * cmA * fm * rep;
+    dA = TP * 0.020 * pm * cmA * fm * rep;
     dD = TP * 0.006 * pm * cmD * fm * rep;
   } else if (focus === "DEFENSE") {
-    dD = TP * 0.02 * pm * cmD * fm * rep;
+    dD = TP * 0.020 * pm * cmD * fm * rep;
     dA = TP * 0.006 * pm * cmA * fm * rep;
   } else if (focus === "BALANCED") {
     dA = TP * 0.013 * pm * cmA * fm * rep;
@@ -145,23 +130,11 @@ function applyTrainingDay(player, dyn, plan) {
   } else if (focus === "CONDITIONING") {
     dA = TP * 0.004 * pm * cmA * fm;
     dD = TP * 0.004 * pm * cmD * fm;
-  } else if (focus === "REST") {
-    dA = 0;
-    dD = 0;
-  }
+  } // REST => 0
 
-  const newAttack = clamp(0, 100, p.attack + dA);
-  const newDefense = clamp(0, 100, p.defense + dD);
-
-  // >>> KEY FIX: bewaar stats met 1 decimaal (niet afronden naar hele getallen)
-  const attack1 = round1(newAttack);
-  const defense1 = round1(newDefense);
-
-  const playerPatch = {
-    attack: attack1,
-    defense: defense1,
-    overall: overallFromAttackDefense(attack1, defense1)
-  };
+  // Apply gains (keep 1 decimal)
+  const nextAttack = round1(clamp(0, 100, attack + dA));
+  const nextDefense = round1(clamp(0, 100, defense + dD));
 
   // Form update
   if (focus !== "REST" && d.fitness > 60) d.form = clamp(0, 100, d.form + (intensityKey === "HIGH" ? 2 : 1));
@@ -170,29 +143,19 @@ function applyTrainingDay(player, dyn, plan) {
   // Injury roll
   if (focus !== "REST" && cost > 0) {
     const chance = injuryChance(loadSum3);
-    if (Math.random() < chance) {
-      d.injuredDays = injuryDurationDays(intensityKey);
-    }
+    if (Math.random() < chance) d.injuredDays = injuryDurationDays(intensityKey);
   }
 
-  const log = [`Training ${focus}/${intensityKey}: +A ${dA.toFixed(2)} +D ${dD.toFixed(2)} fitness ${fitnessDelta >= 0 ? "+" : ""}${fitnessDelta}`];
-  return { playerPatch, dynPatch: d, log };
+  const log = `+A ${dA.toFixed(2)} +D ${dD.toFixed(2)} (fit ${fitnessDelta >= 0 ? "+" : ""}${fitnessDelta})`;
+  return { nextAttack, nextDefense, dynPatch: d, log };
 }
 
 function loadProgress() {
-  try {
-    return JSON.parse(localStorage.getItem(PROGRESS_KEY) || "null");
-  } catch {
-    return null;
-  }
+  try { return JSON.parse(localStorage.getItem(PROGRESS_KEY) || "null"); }
+  catch { return null; }
 }
-function saveProgress(p) {
-  localStorage.setItem(PROGRESS_KEY, JSON.stringify(p));
-}
-
-function el(id) {
-  return document.getElementById(id);
-}
+function saveProgress(p) { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); }
+function el(id) { return document.getElementById(id); }
 
 async function main() {
   const dataStatus = el("dataStatus");
@@ -209,7 +172,6 @@ async function main() {
   const squadHint = el("squadHint");
   const squadTableBody = el("squadTableBody");
 
-  // Load seed
   const seedRes = await fetch(SEED_URL, { cache: "no-store" });
   if (!seedRes.ok) throw new Error(`seed.json niet gevonden (${seedRes.status}). Staat seed.json in de root?`);
   const seed = await seedRes.json();
@@ -217,30 +179,40 @@ async function main() {
   const clubsById = Object.fromEntries(seed.clubs.map(c => [c.id, c.name]));
   dataStatus.textContent = `Seed geladen: ${seed.clubs.length} clubs, ${seed.players.length} spelers.`;
 
-  // Progress
-  let progress =
-    loadProgress() || {
-      day: 1,
-      managerClubId: seed.clubs[0]?.id ?? null,
-      squadPlayerIds: [],
-      dynByPlayerId: {}
-    };
+  // Progress includes playerStatsById for persistent rating growth
+  let progress = loadProgress() || {
+    day: 1,
+    managerClubId: seed.clubs[0]?.id ?? null,
+    squadPlayerIds: [],
+    dynByPlayerId: {},
+    playerStatsById: {} // { [playerId]: {attack, defense} }
+  };
 
   progress.dynByPlayerId = initRuntimeState(seed.players, progress.dynByPlayerId);
 
-  if (!progress.managerClubId) progress.managerClubId = seed.clubs[0]?.id ?? null;
+  // Apply saved stats to seed players
+  for (const p of seed.players) {
+    const saved = progress.playerStatsById?.[p.id];
+    if (saved) {
+      p.attack = saved.attack;
+      p.defense = saved.defense;
+      p.overall = overallFromAttackDefense(toNum(p.attack), toNum(p.defense));
+    } else {
+      // normalize to 1 decimal for consistent display
+      p.attack = round1(toNum(p.attack, 0));
+      p.defense = round1(toNum(p.defense, 0));
+      p.overall = overallFromAttackDefense(p.attack, p.defense);
+    }
+  }
 
   function setDefaultSquadForClub(clubId) {
     const clubPlayers = seed.players
       .filter(p => p.clubId === clubId)
-      .sort((a, b) =>
-        (toNum(b.overall, overallFromAttackDefense(toNum(b.attack), toNum(b.defense)))) -
-        (toNum(a.overall, overallFromAttackDefense(toNum(a.attack), toNum(a.defense))))
-      );
-
+      .sort((a, b) => toNum(b.overall) - toNum(a.overall));
     progress.squadPlayerIds = clubPlayers.slice(0, 14).map(p => p.id);
   }
 
+  if (!progress.managerClubId) progress.managerClubId = seed.clubs[0]?.id ?? null;
   if (!Array.isArray(progress.squadPlayerIds) || progress.squadPlayerIds.length === 0) {
     setDefaultSquadForClub(progress.managerClubId);
   }
@@ -256,18 +228,14 @@ async function main() {
       managerClubSelect.appendChild(opt);
     }
     managerClubSelect.value = progress.managerClubId;
-
-    managerClubHint.textContent = progress.managerClubId ? `Jij managet: ${clubsById[progress.managerClubId]}` : "Kies een club.";
+    managerClubHint.textContent = `Jij managet: ${clubsById[progress.managerClubId]}`;
   }
 
   function renderSquadTable() {
     const clubId = progress.managerClubId;
     const clubPlayers = seed.players
       .filter(p => p.clubId === clubId)
-      .sort((a, b) =>
-        (toNum(b.overall, overallFromAttackDefense(toNum(b.attack), toNum(b.defense)))) -
-        (toNum(a.overall, overallFromAttackDefense(toNum(a.attack), toNum(a.defense))))
-      );
+      .sort((a, b) => toNum(b.overall) - toNum(a.overall));
 
     const squadSet = new Set(progress.squadPlayerIds || []);
     squadHint.textContent = `Selectie: ${squadSet.size}/14 (${clubsById[clubId]})`;
@@ -287,11 +255,7 @@ async function main() {
       cb.addEventListener("change", () => {
         const set = new Set(progress.squadPlayerIds || []);
         if (cb.checked) {
-          if (set.size >= 14) {
-            cb.checked = false;
-            alert("Selectie is vol (14).");
-            return;
-          }
+          if (set.size >= 14) { cb.checked = false; alert("Selectie is vol (14)."); return; }
           set.add(p.id);
         } else {
           set.delete(p.id);
@@ -305,23 +269,16 @@ async function main() {
       td0.appendChild(cb);
       tr.appendChild(td0);
 
-      const a = round1(toNum(p.attack));
-      const d = round1(toNum(p.defense));
-      const o = round1(toNum(p.overall, overallFromAttackDefense(a, d)));
-
-      tr.insertAdjacentHTML(
-        "beforeend",
-        `
+      tr.insertAdjacentHTML("beforeend", `
         <td>${p.name}</td>
         <td>${p.position}</td>
-        <td>${a.toFixed(1)}</td>
-        <td>${d.toFixed(1)}</td>
-        <td>${o.toFixed(1)}</td>
+        <td>${toNum(p.attack).toFixed(1)}</td>
+        <td>${toNum(p.defense).toFixed(1)}</td>
+        <td>${toNum(p.overall).toFixed(1)}</td>
         <td>${dyn.fitness}</td>
         <td>${dyn.form}</td>
         <td>${dyn.injuredDays > 0 ? dyn.injuredDays + "d" : "-"}</td>
-      `
-      );
+      `);
 
       squadTableBody.appendChild(tr);
     }
@@ -332,22 +289,16 @@ async function main() {
     trainTableBody.innerHTML = "";
 
     const squadPlayers = seed.players.filter(p => squadSet.has(p.id));
-
     for (const p of squadPlayers) {
       const dyn = progress.dynByPlayerId[p.id];
-
-      const a = round1(toNum(p.attack));
-      const d = round1(toNum(p.defense));
-      const o = round1(toNum(p.overall, overallFromAttackDefense(a, d)));
-
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${p.name}</td>
         <td>${clubsById[p.clubId] ?? p.clubId}</td>
         <td>${p.position}</td>
-        <td>${a.toFixed(1)}</td>
-        <td>${d.toFixed(1)}</td>
-        <td>${o.toFixed(1)}</td>
+        <td>${toNum(p.attack).toFixed(1)}</td>
+        <td>${toNum(p.defense).toFixed(1)}</td>
+        <td>${toNum(p.overall).toFixed(1)}</td>
         <td>${dyn.fitness}</td>
         <td>${dyn.form}</td>
         <td>${dyn.injuredDays > 0 ? dyn.injuredDays + "d" : "-"}</td>
@@ -369,9 +320,8 @@ async function main() {
 
   btnNextDay.addEventListener("click", () => {
     const plan = { focus: trainFocus.value, intensity: trainIntensity.value };
-
     const squadSet = new Set(progress.squadPlayerIds || []);
-    let lastLog = "OK";
+    let last = "";
 
     for (const p of seed.players) {
       if (!squadSet.has(p.id)) continue;
@@ -379,12 +329,15 @@ async function main() {
       const dyn = progress.dynByPlayerId[p.id];
       const out = applyTrainingDay(p, dyn, plan);
 
-      if (out.playerPatch.attack != null) p.attack = out.playerPatch.attack;
-      if (out.playerPatch.defense != null) p.defense = out.playerPatch.defense;
-      if (out.playerPatch.overall != null) p.overall = out.playerPatch.overall;
+      // Apply new stats to player AND persist
+      p.attack = out.nextAttack;
+      p.defense = out.nextDefense;
+      p.overall = overallFromAttackDefense(toNum(p.attack), toNum(p.defense));
 
+      progress.playerStatsById[p.id] = { attack: p.attack, defense: p.defense };
       progress.dynByPlayerId[p.id] = out.dynPatch;
-      if (out.log && out.log.length) lastLog = out.log[out.log.length - 1];
+
+      last = out.log;
     }
 
     progress.day += 1;
@@ -392,8 +345,7 @@ async function main() {
 
     renderSquadTable();
     renderTrainingTable();
-
-    trainSummary.textContent = `Dag ${progress.day - 1} verwerkt (${plan.focus}/${plan.intensity}). Laatste: ${lastLog}`;
+    trainSummary.textContent = `Dag ${progress.day - 1} verwerkt (${plan.focus}/${plan.intensity}). Laatste: ${last}`;
   });
 
   btnResetProgress.addEventListener("click", () => {
@@ -404,14 +356,15 @@ async function main() {
       day: 1,
       managerClubId: seed.clubs[0]?.id ?? null,
       squadPlayerIds: [],
-      dynByPlayerId: initRuntimeState(seed.players, {})
+      dynByPlayerId: initRuntimeState(seed.players, {}),
+      playerStatsById: {}
     };
     setDefaultSquadForClub(progress.managerClubId);
     saveProgress(progress);
 
-    renderManagerClub();
-    renderSquadTable();
-    renderTrainingTable();
+    // reset seed player stats to base (from file)
+    // easiest: reload page after reset
+    location.reload();
   });
 
   renderManagerClub();
