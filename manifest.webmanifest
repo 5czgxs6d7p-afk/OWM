@@ -1,0 +1,8 @@
+{
+  "name": "OWM Waterpolo Manager",
+  "short_name": "OWM WP",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#071e33",
+  "theme_color": "#0b2a4a"
+}
