@@ -20,41 +20,47 @@
 
   <main class="wrap">
 
+    <!-- 1) Data status -->
     <section class="card">
       <h2>Data status</h2>
-      <section class="card">
-  <h2>Manager</h2>
-
-  <div class="row">
-    <label>Jouw club</label>
-    <select id="managerClubSelect"></select>
-  </div>
-
-  <div class="btns">
-    <button id="btnSaveManagerClub">Bewaar club</button>
-  </div>
-
-  <div class="hint" id="managerClubHint"></div>
-</section>
-      <section class="card">
-  <h2>Selectie (14 spelers)</h2>
-  <div class="hint" id="squadHint"></div>
-
-  <div class="tableWrap">
-    <table class="table">
-      <thead>
-        <tr>
-          <th>In selectie</th><th>Speler</th><th>Pos</th><th>Aanval</th><th>Verd</th><th>Overall</th>
-          <th>Fitness</th><th>Vorm</th><th>Blessure</th>
-        </tr>
-      </thead>
-      <tbody id="squadTableBody"></tbody>
-    </table>
-  </div>
-</section>
       <div id="dataStatus" class="hint">Seed laden…</div>
     </section>
 
+    <!-- 2) Manager club kiezen -->
+    <section class="card">
+      <h2>Manager</h2>
+
+      <div class="row">
+        <label>Jouw club</label>
+        <select id="managerClubSelect"></select>
+      </div>
+
+      <div class="btns">
+        <button id="btnSaveManagerClub">Bewaar club</button>
+      </div>
+
+      <div class="hint" id="managerClubHint"></div>
+    </section>
+
+    <!-- 3) Selectie -->
+    <section class="card">
+      <h2>Selectie (14 spelers)</h2>
+      <div class="hint" id="squadHint"></div>
+
+      <div class="tableWrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>In selectie</th><th>Speler</th><th>Pos</th><th>Aanval</th><th>Verd</th><th>Overall</th>
+              <th>Fitness</th><th>Vorm</th><th>Blessure</th>
+            </tr>
+          </thead>
+          <tbody id="squadTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 4) Training -->
     <section class="card">
       <h2>Training</h2>
 
@@ -97,6 +103,7 @@
           <tbody id="trainTableBody"></tbody>
         </table>
       </div>
+
       <p class="subtle">Potential wordt in deze tabel bewust niet getoond (zit wel in de berekening).</p>
     </section>
 
