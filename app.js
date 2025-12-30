@@ -185,6 +185,45 @@ async function main() {
   const clubsById = Object.fromEntries(seed.clubs.map(c => [c.id, c.name]));
   dataStatus.textContent = `Seed geladen: ${seed.clubs.length} clubs, ${seed.players.length} spelers.`;
 
+  // ===== Manager club UI =====
+const managerClubSelect = el("managerClubSelect");
+const btnSaveManagerClub = el("btnSaveManagerClub");
+const managerClubHint = el("managerClubHint");
+
+function renderManagerClub() {
+  managerClubSelect.innerHTML = "";
+  for (const c of seed.clubs) {
+    const opt = document.createElement("option");
+    opt.value = c.id;
+    opt.textContent = c.name;
+    managerClubSelect.appendChild(opt);
+  }
+
+  if (!progress.managerClubId) {
+    progress.managerClubId = seed.clubs[0]?.id ?? null;
+  }
+  managerClubSelect.value = progress.managerClubId;
+
+  managerClubHint.textContent = progress.managerClubId
+    ? `Jij managet: ${clubsById[progress.managerClubId]}`
+    : "Kies een club.";
+}
+
+btnSaveManagerClub.addEventListener("click", () => {
+  progress.managerClubId = managerClubSelect.value || null;
+
+  const clubPlayers = seed.players.filter(p => p.clubId === progress.managerClubId);
+  clubPlayers.sort((a,b) =>
+    (b.overall ?? overallFromAttackDefense(b.attack,b.defense)) -
+    (a.overall ?? overallFromAttackDefense(a.attack,a.defense))
+  );
+
+  progress.squadPlayerIds = clubPlayers.slice(0, 14).map(p => p.id);
+  saveProgress(progress);
+  renderManagerClub();
+  renderSquadTable();
+});
+
   // Progress
   let progress = loadProgress() || { day: 1, dynByPlayerId: {} };
   progress.dynByPlayerId = initRuntimeState(seed.players, progress.dynByPlayerId);
@@ -242,7 +281,10 @@ async function main() {
     renderTrainingTable();
   });
 
-  renderTrainingTable();
+  renderManagerClub();
+renderSquadTable();
+renderTrainingTable();
+  
 }
 
 main().catch(err => {
