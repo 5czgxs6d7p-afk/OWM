@@ -3,7 +3,7 @@
 // Stores progress in localStorage
 
 const SEED_URL = "seed.json";
-const PROGRESS_KEY = "owm_progress_v2"; // nieuwe key om oude rommel te vermijden
+const PROGRESS_KEY = "owm_progress_v2";
 
 const TRAINING = {
   intensity: {
@@ -17,8 +17,17 @@ function clamp(min, max, v) {
   return Math.max(min, Math.min(max, v));
 }
 
+function round1(v) {
+  return Math.round(v * 10) / 10;
+}
+
+function toNum(v, fallback = 0) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 function overallFromAttackDefense(attack, defense) {
-  return Math.round((0.55 * attack + 0.45 * defense) * 10) / 10;
+  return round1(0.55 * attack + 0.45 * defense);
 }
 
 function potMult(potential) {
@@ -81,6 +90,11 @@ function applyTrainingDay(player, dyn, plan) {
   const p = player; // mutate ok in MVP
   const d = { ...dyn };
 
+  // Ensure numeric stats (seed kan ints bevatten; we werken intern met floats)
+  p.attack = toNum(p.attack, 0);
+  p.defense = toNum(p.defense, 0);
+  p.potential = toNum(p.potential, 3);
+
   // Injury tick
   if (d.injuredDays > 0) {
     d.injuredDays -= 1;
@@ -103,7 +117,6 @@ function applyTrainingDay(player, dyn, plan) {
   let fitnessDelta = 6 - cost; // baseline +6
   if (focus === "REST") fitnessDelta = 14; // 6 + 8
   if (focus === "CONDITIONING") fitnessDelta = 6 - cost + 4;
-
   d.fitness = clamp(0, 100, d.fitness + fitnessDelta);
 
   // Rolling 3-day load
@@ -114,12 +127,11 @@ function applyTrainingDay(player, dyn, plan) {
   // Multipliers
   const pm = potMult(p.potential);
   const fm = fatigueMult(d.fitness);
-  const cmA = capMult(p.attack ?? 0, p.potential);
-  const cmD = capMult(p.defense ?? 0, p.potential);
+  const cmA = capMult(p.attack, p.potential);
+  const cmD = capMult(p.defense, p.potential);
 
-  // Gains
-  let dA = 0,
-    dD = 0;
+  // Gains (floats)
+  let dA = 0, dD = 0;
 
   if (focus === "ATTACK") {
     dA = TP * 0.02 * pm * cmA * fm * rep;
@@ -138,13 +150,17 @@ function applyTrainingDay(player, dyn, plan) {
     dD = 0;
   }
 
-  const newAttack = clamp(0, 100, (p.attack ?? 0) + dA);
-  const newDefense = clamp(0, 100, (p.defense ?? 0) + dD);
+  const newAttack = clamp(0, 100, p.attack + dA);
+  const newDefense = clamp(0, 100, p.defense + dD);
+
+  // >>> KEY FIX: bewaar stats met 1 decimaal (niet afronden naar hele getallen)
+  const attack1 = round1(newAttack);
+  const defense1 = round1(newDefense);
 
   const playerPatch = {
-    attack: Math.round(newAttack),
-    defense: Math.round(newDefense),
-    overall: overallFromAttackDefense(Math.round(newAttack), Math.round(newDefense))
+    attack: attack1,
+    defense: defense1,
+    overall: overallFromAttackDefense(attack1, defense1)
   };
 
   // Form update
@@ -179,7 +195,6 @@ function el(id) {
 }
 
 async function main() {
-  // Core UI
   const dataStatus = el("dataStatus");
   const trainFocus = el("trainFocus");
   const trainIntensity = el("trainIntensity");
@@ -188,7 +203,6 @@ async function main() {
   const trainSummary = el("trainSummary");
   const trainTableBody = el("trainTableBody");
 
-  // Manager/Squad UI (moet bestaan in index.html)
   const managerClubSelect = el("managerClubSelect");
   const btnSaveManagerClub = el("btnSaveManagerClub");
   const managerClubHint = el("managerClubHint");
@@ -214,29 +228,26 @@ async function main() {
 
   progress.dynByPlayerId = initRuntimeState(seed.players, progress.dynByPlayerId);
 
-  // Ensure manager club default
   if (!progress.managerClubId) progress.managerClubId = seed.clubs[0]?.id ?? null;
 
-  // Helper: pick top 14 for club
   function setDefaultSquadForClub(clubId) {
     const clubPlayers = seed.players
       .filter(p => p.clubId === clubId)
-      .sort((a, b) => (b.overall ?? overallFromAttackDefense(b.attack, b.defense)) - (a.overall ?? overallFromAttackDefense(a.attack, a.defense)));
+      .sort((a, b) =>
+        (toNum(b.overall, overallFromAttackDefense(toNum(b.attack), toNum(b.defense)))) -
+        (toNum(a.overall, overallFromAttackDefense(toNum(a.attack), toNum(a.defense))))
+      );
 
     progress.squadPlayerIds = clubPlayers.slice(0, 14).map(p => p.id);
   }
 
-  // If squad empty, set default for chosen club
   if (!Array.isArray(progress.squadPlayerIds) || progress.squadPlayerIds.length === 0) {
     setDefaultSquadForClub(progress.managerClubId);
   }
 
   saveProgress(progress);
 
-  // ===== RENDER: Manager club =====
   function renderManagerClub() {
-    if (!managerClubSelect) return; // voorkomt crash als HTML nog niet aangepast is
-
     managerClubSelect.innerHTML = "";
     for (const c of seed.clubs) {
       const opt = document.createElement("option");
@@ -246,23 +257,20 @@ async function main() {
     }
     managerClubSelect.value = progress.managerClubId;
 
-    if (managerClubHint) {
-      managerClubHint.textContent = progress.managerClubId ? `Jij managet: ${clubsById[progress.managerClubId]}` : "Kies een club.";
-    }
+    managerClubHint.textContent = progress.managerClubId ? `Jij managet: ${clubsById[progress.managerClubId]}` : "Kies een club.";
   }
 
-  // ===== RENDER: Squad table =====
   function renderSquadTable() {
-    if (!squadTableBody) return;
-
     const clubId = progress.managerClubId;
     const clubPlayers = seed.players
       .filter(p => p.clubId === clubId)
-      .sort((a, b) => (b.overall ?? overallFromAttackDefense(b.attack, b.defense)) - (a.overall ?? overallFromAttackDefense(a.attack, b.defense)));
+      .sort((a, b) =>
+        (toNum(b.overall, overallFromAttackDefense(toNum(b.attack), toNum(b.defense)))) -
+        (toNum(a.overall, overallFromAttackDefense(toNum(a.attack), toNum(a.defense))))
+      );
 
     const squadSet = new Set(progress.squadPlayerIds || []);
-
-    if (squadHint) squadHint.textContent = `Selectie: ${squadSet.size}/14 (${clubsById[clubId]})`;
+    squadHint.textContent = `Selectie: ${squadSet.size}/14 (${clubsById[clubId]})`;
 
     squadTableBody.innerHTML = "";
     for (const p of clubPlayers) {
@@ -297,14 +305,18 @@ async function main() {
       td0.appendChild(cb);
       tr.appendChild(td0);
 
+      const a = round1(toNum(p.attack));
+      const d = round1(toNum(p.defense));
+      const o = round1(toNum(p.overall, overallFromAttackDefense(a, d)));
+
       tr.insertAdjacentHTML(
         "beforeend",
         `
         <td>${p.name}</td>
         <td>${p.position}</td>
-        <td>${p.attack}</td>
-        <td>${p.defense}</td>
-        <td>${p.overall ?? overallFromAttackDefense(p.attack, p.defense)}</td>
+        <td>${a.toFixed(1)}</td>
+        <td>${d.toFixed(1)}</td>
+        <td>${o.toFixed(1)}</td>
         <td>${dyn.fitness}</td>
         <td>${dyn.form}</td>
         <td>${dyn.injuredDays > 0 ? dyn.injuredDays + "d" : "-"}</td>
@@ -315,10 +327,7 @@ async function main() {
     }
   }
 
-  // ===== RENDER: Training table (alleen squad) =====
   function renderTrainingTable() {
-    if (!trainTableBody) return;
-
     const squadSet = new Set(progress.squadPlayerIds || []);
     trainTableBody.innerHTML = "";
 
@@ -326,14 +335,19 @@ async function main() {
 
     for (const p of squadPlayers) {
       const dyn = progress.dynByPlayerId[p.id];
+
+      const a = round1(toNum(p.attack));
+      const d = round1(toNum(p.defense));
+      const o = round1(toNum(p.overall, overallFromAttackDefense(a, d)));
+
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${p.name}</td>
         <td>${clubsById[p.clubId] ?? p.clubId}</td>
         <td>${p.position}</td>
-        <td>${p.attack}</td>
-        <td>${p.defense}</td>
-        <td>${p.overall ?? overallFromAttackDefense(p.attack, p.defense)}</td>
+        <td>${a.toFixed(1)}</td>
+        <td>${d.toFixed(1)}</td>
+        <td>${o.toFixed(1)}</td>
         <td>${dyn.fitness}</td>
         <td>${dyn.form}</td>
         <td>${dyn.injuredDays > 0 ? dyn.injuredDays + "d" : "-"}</td>
@@ -341,78 +355,65 @@ async function main() {
       trainTableBody.appendChild(tr);
     }
 
-    if (trainSummary) {
-      trainSummary.textContent = `Dag ${progress.day} — training geldt voor jouw selectie (${squadPlayers.length}/14).`;
+    trainSummary.textContent = `Dag ${progress.day} — training geldt voor jouw selectie (${squadPlayers.length}/14).`;
+  }
+
+  btnSaveManagerClub.addEventListener("click", () => {
+    progress.managerClubId = managerClubSelect.value || null;
+    setDefaultSquadForClub(progress.managerClubId);
+    saveProgress(progress);
+    renderManagerClub();
+    renderSquadTable();
+    renderTrainingTable();
+  });
+
+  btnNextDay.addEventListener("click", () => {
+    const plan = { focus: trainFocus.value, intensity: trainIntensity.value };
+
+    const squadSet = new Set(progress.squadPlayerIds || []);
+    let lastLog = "OK";
+
+    for (const p of seed.players) {
+      if (!squadSet.has(p.id)) continue;
+
+      const dyn = progress.dynByPlayerId[p.id];
+      const out = applyTrainingDay(p, dyn, plan);
+
+      if (out.playerPatch.attack != null) p.attack = out.playerPatch.attack;
+      if (out.playerPatch.defense != null) p.defense = out.playerPatch.defense;
+      if (out.playerPatch.overall != null) p.overall = out.playerPatch.overall;
+
+      progress.dynByPlayerId[p.id] = out.dynPatch;
+      if (out.log && out.log.length) lastLog = out.log[out.log.length - 1];
     }
-  }
 
-  // ===== EVENTS =====
-  if (btnSaveManagerClub) {
-    btnSaveManagerClub.addEventListener("click", () => {
-      if (!managerClubSelect) return;
-      progress.managerClubId = managerClubSelect.value || null;
-      setDefaultSquadForClub(progress.managerClubId);
-      saveProgress(progress);
-      renderManagerClub();
-      renderSquadTable();
-      renderTrainingTable();
-    });
-  }
+    progress.day += 1;
+    saveProgress(progress);
 
-  if (btnNextDay) {
-    btnNextDay.addEventListener("click", () => {
-      const plan = { focus: trainFocus?.value ?? "REST", intensity: trainIntensity?.value ?? "NORMAL" };
+    renderSquadTable();
+    renderTrainingTable();
 
-      const squadSet = new Set(progress.squadPlayerIds || []);
-      let lastLog = "OK";
+    trainSummary.textContent = `Dag ${progress.day - 1} verwerkt (${plan.focus}/${plan.intensity}). Laatste: ${lastLog}`;
+  });
 
-      for (const p of seed.players) {
-        if (!squadSet.has(p.id)) continue;
+  btnResetProgress.addEventListener("click", () => {
+    if (!confirm("Voortgang resetten op dit apparaat?")) return;
+    localStorage.removeItem(PROGRESS_KEY);
 
-        const dyn = progress.dynByPlayerId[p.id];
-        const out = applyTrainingDay(p, dyn, plan);
+    progress = {
+      day: 1,
+      managerClubId: seed.clubs[0]?.id ?? null,
+      squadPlayerIds: [],
+      dynByPlayerId: initRuntimeState(seed.players, {})
+    };
+    setDefaultSquadForClub(progress.managerClubId);
+    saveProgress(progress);
 
-        if (out.playerPatch.attack != null) p.attack = out.playerPatch.attack;
-        if (out.playerPatch.defense != null) p.defense = out.playerPatch.defense;
-        if (out.playerPatch.overall != null) p.overall = out.playerPatch.overall;
+    renderManagerClub();
+    renderSquadTable();
+    renderTrainingTable();
+  });
 
-        progress.dynByPlayerId[p.id] = out.dynPatch;
-        if (out.log && out.log.length) lastLog = out.log[out.log.length - 1];
-      }
-
-      progress.day += 1;
-      saveProgress(progress);
-
-      renderSquadTable();
-      renderTrainingTable();
-
-      if (trainSummary) {
-        trainSummary.textContent = `Dag ${progress.day - 1} verwerkt (${plan.focus}/${plan.intensity}). Laatste: ${lastLog}`;
-      }
-    });
-  }
-
-  if (btnResetProgress) {
-    btnResetProgress.addEventListener("click", () => {
-      if (!confirm("Voortgang resetten op dit apparaat?")) return;
-      localStorage.removeItem(PROGRESS_KEY);
-
-      progress = {
-        day: 1,
-        managerClubId: seed.clubs[0]?.id ?? null,
-        squadPlayerIds: [],
-        dynByPlayerId: initRuntimeState(seed.players, {})
-      };
-      setDefaultSquadForClub(progress.managerClubId);
-      saveProgress(progress);
-
-      renderManagerClub();
-      renderSquadTable();
-      renderTrainingTable();
-    });
-  }
-
-  // Initial render
   renderManagerClub();
   renderSquadTable();
   renderTrainingTable();
