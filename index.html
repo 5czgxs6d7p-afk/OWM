@@ -60,6 +60,49 @@
       </div>
     </section>
 
+    <!-- 3A) Opstelling -->
+    <section class="card">
+      <h2>Opstelling</h2>
+      <div class="hint" id="lineupHint"></div>
+
+      <div class="row">
+        <label>Starter (7)</label>
+        <select id="starterSelect"></select>
+        <button id="btnAddStarter">Voeg toe</button>
+      </div>
+
+      <div class="tableWrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Starter</th><th>Speler</th><th>Pos</th><th>Aanval</th><th>Verd</th><th>Overall</th>
+              <th>Fitness</th><th>Vorm</th><th>Blessure</th><th>Actie</th>
+            </tr>
+          </thead>
+          <tbody id="startersTableBody"></tbody>
+        </table>
+      </div>
+
+      <h3 style="margin-top:14px;">Bank (automatisch, 7)</h3>
+      <div class="tableWrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Speler</th><th>Pos</th><th>Aanval</th><th>Verd</th><th>Overall</th>
+              <th>Fitness</th><th>Vorm</th><th>Blessure</th>
+            </tr>
+          </thead>
+          <tbody id="benchTableBody"></tbody>
+        </table>
+      </div>
+
+      <div class="btns" style="margin-top:10px;">
+        <button class="ghost" id="btnAutoLineup">Auto-opstelling (beste 7 incl. GK)</button>
+      </div>
+
+      <p class="subtle">Regels (MVP): precies 7 starters, minimaal 1 GK. Bank = rest van selectie.</p>
+    </section>
+
     <!-- 4) Training -->
     <section class="card">
       <h2>Training</h2>
@@ -104,11 +147,12 @@
         </table>
       </div>
 
-      <p class="subtle">Potential wordt in deze tabel bewust niet getoond (zit wel in de berekening).</p>
+      <p class="subtle">Potential wordt niet getoond (zit wel in de berekening).</p>
     </section>
 
   </main>
 
-<script src="app.js?v=3"></script>
+  <!-- cache-bust: dwingt browser nieuwe JS te laden -->
+  <script src="app.js?v=4"></script>
 </body>
 </html>
