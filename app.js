@@ -1,9 +1,9 @@
 // OWM Waterpolo Manager (MVP)
-// Training + growth engine (no age, only potential)
-// Stores progress in localStorage (incl. stat growth)
+// Fase 3A: Manager club + selectie (14) + opstelling (7 starters + bank) + training
+// Training growth uses hidden potential. Stats + dyn state are persisted in localStorage.
 
 const SEED_URL = "seed.json";
-const PROGRESS_KEY = "owm_progress_v3"; // bump zodat je schoon start
+const PROGRESS_KEY = "owm_progress_v4"; // bump key to start clean for this phase
 
 const TRAINING = {
   intensity: {
@@ -28,7 +28,6 @@ function potMult(potential) {
   const map = { 1: 0.75, 2: 0.90, 3: 1.00, 4: 1.12, 5: 1.25 };
   return map[potential] ?? 1.0;
 }
-
 function capStat(potential) { return 62 + 8 * (potential ?? 3); }
 function capMult(stat, potential) {
   const cap = capStat(potential);
@@ -40,7 +39,7 @@ function fatigueMult(fitness) { return clamp(0.55, 1.0, (fitness ?? 92) / 100); 
 function repeatMult(lastFocusStreak, newFocus) {
   if (!lastFocusStreak || lastFocusStreak.focus !== newFocus) return 1.0;
   if (lastFocusStreak.days === 1) return 0.85;
-  return 0.70; // day 3+
+  return 0.70;
 }
 
 function injuryChance(loadSum3) {
@@ -72,10 +71,10 @@ function initRuntimeState(seedPlayers, existing = {}) {
   return state;
 }
 
+// Core training step; returns nextAttack/nextDefense and updated dyn
 function applyTrainingDay(p, dyn, plan) {
   const d = { ...dyn };
 
-  // Ensure numeric
   const attack = toNum(p.attack, 0);
   const defense = toNum(p.defense, 0);
   const potential = toNum(p.potential, 3);
@@ -105,7 +104,7 @@ function applyTrainingDay(p, dyn, plan) {
   d.fitness = clamp(0, 100, d.fitness + fitnessDelta);
 
   // Rolling 3-day load
-  const newLoad3 = [...(d.trainingLoad3 || [0,0,0]).slice(1), cost];
+  const newLoad3 = [...(d.trainingLoad3 || [0, 0, 0]).slice(1), cost];
   d.trainingLoad3 = newLoad3;
   const loadSum3 = newLoad3.reduce((s, x) => s + x, 0);
 
@@ -117,7 +116,6 @@ function applyTrainingDay(p, dyn, plan) {
 
   // Gains
   let dA = 0, dD = 0;
-
   if (focus === "ATTACK") {
     dA = TP * 0.020 * pm * cmA * fm * rep;
     dD = TP * 0.006 * pm * cmD * fm * rep;
@@ -132,11 +130,10 @@ function applyTrainingDay(p, dyn, plan) {
     dD = TP * 0.004 * pm * cmD * fm;
   } // REST => 0
 
-  // Apply gains (keep 1 decimal)
   const nextAttack = round1(clamp(0, 100, attack + dA));
   const nextDefense = round1(clamp(0, 100, defense + dD));
 
-  // Form update
+  // Form
   if (focus !== "REST" && d.fitness > 60) d.form = clamp(0, 100, d.form + (intensityKey === "HIGH" ? 2 : 1));
   if (d.fitness < 50) d.form = clamp(0, 100, d.form - 1);
 
@@ -146,8 +143,7 @@ function applyTrainingDay(p, dyn, plan) {
     if (Math.random() < chance) d.injuredDays = injuryDurationDays(intensityKey);
   }
 
-  const log = `+A ${dA.toFixed(2)} +D ${dD.toFixed(2)} (fit ${fitnessDelta >= 0 ? "+" : ""}${fitnessDelta})`;
-  return { nextAttack, nextDefense, dynPatch: d, log };
+  return { nextAttack, nextDefense, dynPatch: d, log: `+A ${dA.toFixed(2)} +D ${dD.toFixed(2)} (fit ${fitnessDelta >= 0 ? "+" : ""}${fitnessDelta})` };
 }
 
 function loadProgress() {
@@ -157,7 +153,14 @@ function loadProgress() {
 function saveProgress(p) { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); }
 function el(id) { return document.getElementById(id); }
 
+function downgradeIntensity(intKey) {
+  if (intKey === "HIGH") return "NORMAL";
+  if (intKey === "NORMAL") return "LOW";
+  return "LOW";
+}
+
 async function main() {
+  // Core UI
   const dataStatus = el("dataStatus");
   const trainFocus = el("trainFocus");
   const trainIntensity = el("trainIntensity");
@@ -166,12 +169,22 @@ async function main() {
   const trainSummary = el("trainSummary");
   const trainTableBody = el("trainTableBody");
 
+  // Manager/Squad UI
   const managerClubSelect = el("managerClubSelect");
   const btnSaveManagerClub = el("btnSaveManagerClub");
   const managerClubHint = el("managerClubHint");
   const squadHint = el("squadHint");
   const squadTableBody = el("squadTableBody");
 
+  // Lineup UI
+  const lineupHint = el("lineupHint");
+  const starterSelect = el("starterSelect");
+  const btnAddStarter = el("btnAddStarter");
+  const btnAutoLineup = el("btnAutoLineup");
+  const startersTableBody = el("startersTableBody");
+  const benchTableBody = el("benchTableBody");
+
+  // Load seed
   const seedRes = await fetch(SEED_URL, { cache: "no-store" });
   if (!seedRes.ok) throw new Error(`seed.json niet gevonden (${seedRes.status}). Staat seed.json in de root?`);
   const seed = await seedRes.json();
@@ -179,30 +192,38 @@ async function main() {
   const clubsById = Object.fromEntries(seed.clubs.map(c => [c.id, c.name]));
   dataStatus.textContent = `Seed geladen: ${seed.clubs.length} clubs, ${seed.players.length} spelers.`;
 
-  // Progress includes playerStatsById for persistent rating growth
+  // Progress (includes persistent stat growth + lineup)
   let progress = loadProgress() || {
     day: 1,
     managerClubId: seed.clubs[0]?.id ?? null,
     squadPlayerIds: [],
+    lineupStarterIds: [],
     dynByPlayerId: {},
-    playerStatsById: {} // { [playerId]: {attack, defense} }
+    playerStatsById: {}
   };
+  if (!Array.isArray(progress.squadPlayerIds)) progress.squadPlayerIds = [];
+  if (!Array.isArray(progress.lineupStarterIds)) progress.lineupStarterIds = [];
+  if (!progress.playerStatsById) progress.playerStatsById = {};
+  if (!progress.dynByPlayerId) progress.dynByPlayerId = {};
 
   progress.dynByPlayerId = initRuntimeState(seed.players, progress.dynByPlayerId);
 
   // Apply saved stats to seed players
   for (const p of seed.players) {
-    const saved = progress.playerStatsById?.[p.id];
+    const saved = progress.playerStatsById[p.id];
     if (saved) {
       p.attack = saved.attack;
       p.defense = saved.defense;
-      p.overall = overallFromAttackDefense(toNum(p.attack), toNum(p.defense));
     } else {
-      // normalize to 1 decimal for consistent display
       p.attack = round1(toNum(p.attack, 0));
       p.defense = round1(toNum(p.defense, 0));
-      p.overall = overallFromAttackDefense(p.attack, p.defense);
     }
+    p.overall = overallFromAttackDefense(toNum(p.attack), toNum(p.defense));
+  }
+
+  function getSquadPlayers() {
+    const set = new Set(progress.squadPlayerIds);
+    return seed.players.filter(p => set.has(p.id));
   }
 
   function setDefaultSquadForClub(clubId) {
@@ -212,10 +233,41 @@ async function main() {
     progress.squadPlayerIds = clubPlayers.slice(0, 14).map(p => p.id);
   }
 
-  if (!progress.managerClubId) progress.managerClubId = seed.clubs[0]?.id ?? null;
-  if (!Array.isArray(progress.squadPlayerIds) || progress.squadPlayerIds.length === 0) {
-    setDefaultSquadForClub(progress.managerClubId);
+  function hasGK(starterIds) {
+    const set = new Set(starterIds);
+    return seed.players.some(p => set.has(p.id) && p.position === "GK");
   }
+
+  function autoPickStarters() {
+    const squad = getSquadPlayers();
+
+    const gks = squad.filter(p => p.position === "GK").sort((a, b) => toNum(b.overall) - toNum(a.overall));
+    const nonGks = squad.filter(p => p.position !== "GK").sort((a, b) => toNum(b.overall) - toNum(a.overall));
+
+    const picked = [];
+    if (gks.length > 0) picked.push(gks[0].id);
+
+    for (const p of nonGks) {
+      if (picked.length >= 7) break;
+      if (!picked.includes(p.id)) picked.push(p.id);
+    }
+
+    // fallback if no GK or still short
+    if (picked.length < 7) {
+      const allSorted = [...squad].sort((a, b) => toNum(b.overall) - toNum(a.overall));
+      for (const p of allSorted) {
+        if (picked.length >= 7) break;
+        if (!picked.includes(p.id)) picked.push(p.id);
+      }
+    }
+
+    progress.lineupStarterIds = picked.slice(0, 7);
+  }
+
+  // Ensure defaults
+  if (!progress.managerClubId) progress.managerClubId = seed.clubs[0]?.id ?? null;
+  if (progress.squadPlayerIds.length === 0) setDefaultSquadForClub(progress.managerClubId);
+  if (progress.lineupStarterIds.length === 0) autoPickStarters();
 
   saveProgress(progress);
 
@@ -237,7 +289,7 @@ async function main() {
       .filter(p => p.clubId === clubId)
       .sort((a, b) => toNum(b.overall) - toNum(a.overall));
 
-    const squadSet = new Set(progress.squadPlayerIds || []);
+    const squadSet = new Set(progress.squadPlayerIds);
     squadHint.textContent = `Selectie: ${squadSet.size}/14 (${clubsById[clubId]})`;
 
     squadTableBody.innerHTML = "";
@@ -253,7 +305,7 @@ async function main() {
       cb.checked = isIn;
 
       cb.addEventListener("change", () => {
-        const set = new Set(progress.squadPlayerIds || []);
+        const set = new Set(progress.squadPlayerIds);
         if (cb.checked) {
           if (set.size >= 14) { cb.checked = false; alert("Selectie is vol (14)."); return; }
           set.add(p.id);
@@ -261,8 +313,15 @@ async function main() {
           set.delete(p.id);
         }
         progress.squadPlayerIds = Array.from(set);
+
+        // keep starters subset of squad
+        const squadNow = new Set(progress.squadPlayerIds);
+        progress.lineupStarterIds = (progress.lineupStarterIds || []).filter(id => squadNow.has(id));
+        if (progress.lineupStarterIds.length === 0 && progress.squadPlayerIds.length > 0) autoPickStarters();
+
         saveProgress(progress);
         renderSquadTable();
+        renderLineup();
         renderTrainingTable();
       });
 
@@ -284,8 +343,93 @@ async function main() {
     }
   }
 
+  function renderStarterSelect() {
+    const squad = getSquadPlayers();
+    const starterSet = new Set(progress.lineupStarterIds);
+
+    starterSelect.innerHTML = "";
+    const available = squad.filter(p => !starterSet.has(p.id));
+
+    for (const p of available) {
+      const opt = document.createElement("option");
+      opt.value = p.id;
+      opt.textContent = `${p.name} (${p.position})`;
+      starterSelect.appendChild(opt);
+    }
+
+    if (available.length === 0) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "Geen spelers beschikbaar";
+      starterSelect.appendChild(opt);
+    }
+  }
+
+  function renderLineup() {
+    const squad = getSquadPlayers();
+    const starterSet = new Set(progress.lineupStarterIds);
+
+    const startersList = squad.filter(p => starterSet.has(p.id));
+    const benchList = squad.filter(p => !starterSet.has(p.id));
+
+    const starterIds = progress.lineupStarterIds;
+    const countOk = starterIds.length === 7;
+    const gkOk = hasGK(starterIds);
+
+    lineupHint.textContent = `Starters: ${starterIds.length}/7 — GK: ${gkOk ? "OK" : "ONTBREEKT"}${countOk ? "" : " — (vul aan tot 7)"}`;
+
+    startersTableBody.innerHTML = "";
+    for (const p of startersList) {
+      const dyn = progress.dynByPlayerId[p.id];
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>✓</td>
+        <td>${p.name}</td>
+        <td>${p.position}</td>
+        <td>${toNum(p.attack).toFixed(1)}</td>
+        <td>${toNum(p.defense).toFixed(1)}</td>
+        <td>${toNum(p.overall).toFixed(1)}</td>
+        <td>${dyn.fitness}</td>
+        <td>${dyn.form}</td>
+        <td>${dyn.injuredDays > 0 ? dyn.injuredDays + "d" : "-"}</td>
+        <td><button data-remove-starter="${p.id}">Verwijder</button></td>
+      `;
+      startersTableBody.appendChild(tr);
+    }
+
+    benchTableBody.innerHTML = "";
+    for (const p of benchList) {
+      const dyn = progress.dynByPlayerId[p.id];
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${p.name}</td>
+        <td>${p.position}</td>
+        <td>${toNum(p.attack).toFixed(1)}</td>
+        <td>${toNum(p.defense).toFixed(1)}</td>
+        <td>${toNum(p.overall).toFixed(1)}</td>
+        <td>${dyn.fitness}</td>
+        <td>${dyn.form}</td>
+        <td>${dyn.injuredDays > 0 ? dyn.injuredDays + "d" : "-"}</td>
+      `;
+      benchTableBody.appendChild(tr);
+    }
+
+    startersTableBody.querySelectorAll("button[data-remove-starter]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-remove-starter");
+        progress.lineupStarterIds = (progress.lineupStarterIds || []).filter(x => x !== id);
+        saveProgress(progress);
+        renderStarterSelect();
+        renderLineup();
+        renderTrainingTable();
+      });
+    });
+
+    renderStarterSelect();
+  }
+
   function renderTrainingTable() {
-    const squadSet = new Set(progress.squadPlayerIds || []);
+    const squadSet = new Set(progress.squadPlayerIds);
     trainTableBody.innerHTML = "";
 
     const squadPlayers = seed.players.filter(p => squadSet.has(p.id));
@@ -306,30 +450,69 @@ async function main() {
       trainTableBody.appendChild(tr);
     }
 
-    trainSummary.textContent = `Dag ${progress.day} — training geldt voor jouw selectie (${squadPlayers.length}/14).`;
+    const startersOk = progress.lineupStarterIds.length === 7 && hasGK(progress.lineupStarterIds);
+    trainSummary.textContent = `Dag ${progress.day} — training: starters 100%, bank 50% (via intensiteit). Opstelling ${startersOk ? "OK" : "niet compleet"}.`;
   }
 
+  // ===== Events =====
   btnSaveManagerClub.addEventListener("click", () => {
     progress.managerClubId = managerClubSelect.value || null;
     setDefaultSquadForClub(progress.managerClubId);
+    progress.lineupStarterIds = [];
+    autoPickStarters();
     saveProgress(progress);
     renderManagerClub();
     renderSquadTable();
+    renderLineup();
+    renderTrainingTable();
+  });
+
+  btnAddStarter.addEventListener("click", () => {
+    const id = starterSelect.value;
+    if (!id) return;
+
+    const set = new Set(progress.lineupStarterIds);
+    if (set.size >= 7) { alert("Je hebt al 7 starters."); return; }
+
+    const squadSet = new Set(progress.squadPlayerIds);
+    if (!squadSet.has(id)) { alert("Speler zit niet in je selectie."); return; }
+
+    set.add(id);
+    progress.lineupStarterIds = Array.from(set);
+    saveProgress(progress);
+    renderStarterSelect();
+    renderLineup();
+    renderTrainingTable();
+  });
+
+  btnAutoLineup.addEventListener("click", () => {
+    autoPickStarters();
+    saveProgress(progress);
+    renderLineup();
     renderTrainingTable();
   });
 
   btnNextDay.addEventListener("click", () => {
+    const startersOk = progress.lineupStarterIds.length === 7 && hasGK(progress.lineupStarterIds);
+
     const plan = { focus: trainFocus.value, intensity: trainIntensity.value };
-    const squadSet = new Set(progress.squadPlayerIds || []);
+    const squadSet = new Set(progress.squadPlayerIds);
+    const starterSet = new Set(progress.lineupStarterIds);
+
     let last = "";
 
     for (const p of seed.players) {
       if (!squadSet.has(p.id)) continue;
 
       const dyn = progress.dynByPlayerId[p.id];
-      const out = applyTrainingDay(p, dyn, plan);
 
-      // Apply new stats to player AND persist
+      const isStarter = starterSet.has(p.id);
+      const usedPlan = isStarter
+        ? plan
+        : { focus: plan.focus, intensity: downgradeIntensity(plan.intensity) };
+
+      const out = applyTrainingDay(p, dyn, usedPlan);
+
       p.attack = out.nextAttack;
       p.defense = out.nextDefense;
       p.overall = overallFromAttackDefense(toNum(p.attack), toNum(p.defense));
@@ -344,31 +527,22 @@ async function main() {
     saveProgress(progress);
 
     renderSquadTable();
+    renderLineup();
     renderTrainingTable();
-    trainSummary.textContent = `Dag ${progress.day - 1} verwerkt (${plan.focus}/${plan.intensity}). Laatste: ${last}`;
+
+    trainSummary.textContent = `Dag ${progress.day - 1} verwerkt (${plan.focus}/${plan.intensity}) — starters 100%, bank 50%. ${startersOk ? "" : "Let op: opstelling niet compleet."} Laatste: ${last}`;
   });
 
   btnResetProgress.addEventListener("click", () => {
     if (!confirm("Voortgang resetten op dit apparaat?")) return;
     localStorage.removeItem(PROGRESS_KEY);
-
-    progress = {
-      day: 1,
-      managerClubId: seed.clubs[0]?.id ?? null,
-      squadPlayerIds: [],
-      dynByPlayerId: initRuntimeState(seed.players, {}),
-      playerStatsById: {}
-    };
-    setDefaultSquadForClub(progress.managerClubId);
-    saveProgress(progress);
-
-    // reset seed player stats to base (from file)
-    // easiest: reload page after reset
     location.reload();
   });
 
+  // Initial render
   renderManagerClub();
   renderSquadTable();
+  renderLineup();
   renderTrainingTable();
 }
 
