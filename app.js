@@ -1,9 +1,10 @@
 // OWM Waterpolo Manager (MVP)
-// Fase 3A: Manager club + selectie (14) + opstelling (7 starters + bank) + training
-// Training growth uses hidden potential. Stats + dyn state are persisted in localStorage.
+// Fase 3B: Competitie (schema + uitslagen + stand) bovenop Fase 3A
+// Training: starters 100% (gekozen intensiteit), bank 50% (intensiteit downgrade)
+// Stats + dyn + league state persistent in localStorage
 
 const SEED_URL = "seed.json";
-const PROGRESS_KEY = "owm_progress_v4"; // bump key to start clean for this phase
+const PROGRESS_KEY = "owm_progress_v5";
 
 const TRAINING = {
   intensity: {
@@ -19,6 +20,7 @@ function toNum(v, fallback = 0) {
   const n = Number(v);
   return Number.isFinite(n) ? n : fallback;
 }
+function el(id) { return document.getElementById(id); }
 
 function overallFromAttackDefense(attack, defense) {
   return round1(0.55 * attack + 0.45 * defense);
@@ -71,7 +73,13 @@ function initRuntimeState(seedPlayers, existing = {}) {
   return state;
 }
 
-// Core training step; returns nextAttack/nextDefense and updated dyn
+function downgradeIntensity(intKey) {
+  if (intKey === "HIGH") return "NORMAL";
+  if (intKey === "NORMAL") return "LOW";
+  return "LOW";
+}
+
+// Training step; returns nextAttack/nextDefense and updated dyn
 function applyTrainingDay(p, dyn, plan) {
   const d = { ...dyn };
 
@@ -151,13 +159,159 @@ function loadProgress() {
   catch { return null; }
 }
 function saveProgress(p) { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); }
-function el(id) { return document.getElementById(id); }
 
-function downgradeIntensity(intKey) {
-  if (intKey === "HIGH") return "NORMAL";
-  if (intKey === "NORMAL") return "LOW";
-  return "LOW";
+// ---------- League / Match simulation ----------
+
+function makeEmptyTable(clubId) {
+  return { clubId, W: 0, D: 0, L: 0, GF: 0, GA: 0, P: 0 };
 }
+
+function sortStandings(rows) {
+  return [...rows].sort((a, b) => {
+    if (b.P !== a.P) return b.P - a.P;
+    const gdB = (b.GF - b.GA);
+    const gdA = (a.GF - a.GA);
+    if (gdB !== gdA) return gdB - gdA;
+    if (b.GF !== a.GF) return b.GF - a.GF;
+    return String(a.clubId).localeCompare(String(b.clubId));
+  });
+}
+
+// Round robin generator for odd N using BYE.
+// Returns matchdays: [{ day: 1, fixtures: [{homeId, awayId} ...] }, ...]
+function generateDoubleRoundRobin(clubIds) {
+  const BYE = "__BYE__";
+  const teams = [...clubIds];
+  if (teams.length % 2 === 1) teams.push(BYE); // make even
+
+  const n = teams.length; // even
+  const rounds = n - 1;
+
+  let arr = [...teams];
+  const firstHalf = [];
+
+  for (let r = 0; r < rounds; r++) {
+    const fixtures = [];
+    for (let i = 0; i < n / 2; i++) {
+      const a = arr[i];
+      const b = arr[n - 1 - i];
+      // alternate home/away to reduce bias
+      const home = (r % 2 === 0) ? a : b;
+      const away = (r % 2 === 0) ? b : a;
+
+      if (home !== BYE && away !== BYE) fixtures.push({ homeId: home, awayId: away });
+    }
+    firstHalf.push({ day: r + 1, fixtures });
+
+    // rotate (circle method): keep first fixed, rotate rest
+    const fixed = arr[0];
+    const rest = arr.slice(1);
+    rest.unshift(rest.pop());
+    arr = [fixed, ...rest];
+  }
+
+  // second half: reverse home/away
+  const secondHalf = firstHalf.map((md, idx) => ({
+    day: rounds + idx + 1,
+    fixtures: md.fixtures.map(f => ({ homeId: f.awayId, awayId: f.homeId }))
+  }));
+
+  return [...firstHalf, ...secondHalf]; // 2*(n-1) matchdays
+}
+
+function mulClamp(v, min, max) { return clamp(min, max, v); }
+
+// Poisson sampler (small lambdas ok)
+function poisson(lambda) {
+  const L = Math.exp(-lambda);
+  let k = 0;
+  let p = 1.0;
+  do {
+    k++;
+    p *= Math.random();
+  } while (p > L);
+  return k - 1;
+}
+
+function teamStartersFromClub(seedPlayers, clubId) {
+  const squad = seedPlayers
+    .filter(p => p.clubId === clubId)
+    .sort((a, b) => toNum(b.overall) - toNum(a.overall));
+
+  const gks = squad.filter(p => p.position === "GK");
+  const non = squad.filter(p => p.position !== "GK");
+
+  const picked = [];
+  if (gks.length) picked.push(gks[0]);
+  for (const p of non) {
+    if (picked.length >= 7) break;
+    picked.push(p);
+  }
+  // fallback
+  while (picked.length < 7 && squad[picked.length]) picked.push(squad[picked.length]);
+  return picked.slice(0, 7);
+}
+
+function userStarters(seedPlayers, progress) {
+  const set = new Set(progress.lineupStarterIds || []);
+  const starters = seedPlayers.filter(p => set.has(p.id));
+  // If somehow not 7, fallback to best 7 of club
+  if (starters.length === 7) return starters;
+  return teamStartersFromClub(seedPlayers, progress.managerClubId);
+}
+
+function calcTeamRatings(starters, dynByPlayerId) {
+  const safe = starters.length ? starters : [];
+  const avgAttack = safe.reduce((s, p) => s + toNum(p.attack), 0) / Math.max(1, safe.length);
+  const avgDefense = safe.reduce((s, p) => s + toNum(p.defense), 0) / Math.max(1, safe.length);
+
+  const avgFit = safe.reduce((s, p) => s + toNum(dynByPlayerId[p.id]?.fitness, 92), 0) / Math.max(1, safe.length);
+  const avgForm = safe.reduce((s, p) => s + toNum(dynByPlayerId[p.id]?.form, 50), 0) / Math.max(1, safe.length);
+
+  const fitMult = mulClamp(avgFit / 92, 0.75, 1.08);
+  const formMult = mulClamp(0.9 + (avgForm - 50) / 250, 0.85, 1.15);
+
+  return {
+    A: avgAttack,
+    D: avgDefense,
+    fitMult,
+    formMult
+  };
+}
+
+function simulateMatch(home, away) {
+  // Inputs are already effective ratings
+  const base = 11.0;
+
+  // Attack vs Defense ratio
+  const homeAttackFactor = mulClamp((home.A + 25) / (away.D + 25), 0.75, 1.30);
+  const awayAttackFactor = mulClamp((away.A + 25) / (home.D + 25), 0.75, 1.30);
+
+  const homeLambda = base * homeAttackFactor * home.fitMult * home.formMult * 1.06; // home advantage
+  const awayLambda = base * awayAttackFactor * away.fitMult * away.formMult * 0.98;
+
+  let hg = poisson(homeLambda);
+  let ag = poisson(awayLambda);
+
+  hg = clamp(3, 20, hg);
+  ag = clamp(3, 20, ag);
+
+  return { hg, ag };
+}
+
+function applyResultToStandings(tableByClubId, homeId, awayId, hg, ag) {
+  const h = tableByClubId[homeId];
+  const a = tableByClubId[awayId];
+
+  h.GF += hg; h.GA += ag;
+  a.GF += ag; a.GA += hg;
+
+  if (hg > ag) { h.W += 1; a.L += 1; h.P += 3; }
+  else if (hg < ag) { a.W += 1; h.L += 1; a.P += 3; }
+  else { h.D += 1; a.D += 1; h.P += 1; a.P += 1; }
+}
+
+// ---------- App ----------
 
 async function main() {
   // Core UI
@@ -184,6 +338,12 @@ async function main() {
   const startersTableBody = el("startersTableBody");
   const benchTableBody = el("benchTableBody");
 
+  // League UI
+  const seasonHint = el("seasonHint");
+  const fixturesBody = el("fixturesBody");
+  const standingsBody = el("standingsBody");
+  const resultsBody = el("resultsBody");
+
   // Load seed
   const seedRes = await fetch(SEED_URL, { cache: "no-store" });
   if (!seedRes.ok) throw new Error(`seed.json niet gevonden (${seedRes.status}). Staat seed.json in de root?`);
@@ -192,23 +352,40 @@ async function main() {
   const clubsById = Object.fromEntries(seed.clubs.map(c => [c.id, c.name]));
   dataStatus.textContent = `Seed geladen: ${seed.clubs.length} clubs, ${seed.players.length} spelers.`;
 
-  // Progress (includes persistent stat growth + lineup)
+  const clubIds = seed.clubs.map(c => c.id);
+  const schedule = generateDoubleRoundRobin(clubIds); // 22 matchdays if 11 teams
+
+  // Progress (includes persistent stat growth + lineup + league state)
   let progress = loadProgress() || {
     day: 1,
     managerClubId: seed.clubs[0]?.id ?? null,
     squadPlayerIds: [],
     lineupStarterIds: [],
     dynByPlayerId: {},
-    playerStatsById: {}
+    playerStatsById: {},
+    league: {
+      schedule,                 // fixed
+      standingsByClubId: {},    // computed/persisted
+      lastDayResults: [],       // [{homeId, awayId, hg, ag}]
+      currentMatchday: 1        // 1..schedule.length
+    }
   };
+
+  // Ensure objects exist for older saves
   if (!Array.isArray(progress.squadPlayerIds)) progress.squadPlayerIds = [];
   if (!Array.isArray(progress.lineupStarterIds)) progress.lineupStarterIds = [];
   if (!progress.playerStatsById) progress.playerStatsById = {};
   if (!progress.dynByPlayerId) progress.dynByPlayerId = {};
+  if (!progress.league) progress.league = { schedule, standingsByClubId: {}, lastDayResults: [], currentMatchday: 1 };
+  if (!Array.isArray(progress.league.schedule)) progress.league.schedule = schedule;
+  if (!progress.league.standingsByClubId) progress.league.standingsByClubId = {};
+  if (!Array.isArray(progress.league.lastDayResults)) progress.league.lastDayResults = [];
+  if (!progress.league.currentMatchday) progress.league.currentMatchday = 1;
 
+  // init dyn state
   progress.dynByPlayerId = initRuntimeState(seed.players, progress.dynByPlayerId);
 
-  // Apply saved stats to seed players
+  // Apply saved stats to players
   for (const p of seed.players) {
     const saved = progress.playerStatsById[p.id];
     if (saved) {
@@ -219,6 +396,12 @@ async function main() {
       p.defense = round1(toNum(p.defense, 0));
     }
     p.overall = overallFromAttackDefense(toNum(p.attack), toNum(p.defense));
+  }
+
+  // Init standings if empty
+  const tableByClubId = progress.league.standingsByClubId;
+  for (const cid of clubIds) {
+    if (!tableByClubId[cid]) tableByClubId[cid] = makeEmptyTable(cid);
   }
 
   function getSquadPlayers() {
@@ -240,19 +423,15 @@ async function main() {
 
   function autoPickStarters() {
     const squad = getSquadPlayers();
-
     const gks = squad.filter(p => p.position === "GK").sort((a, b) => toNum(b.overall) - toNum(a.overall));
     const nonGks = squad.filter(p => p.position !== "GK").sort((a, b) => toNum(b.overall) - toNum(a.overall));
 
     const picked = [];
     if (gks.length > 0) picked.push(gks[0].id);
-
     for (const p of nonGks) {
       if (picked.length >= 7) break;
       if (!picked.includes(p.id)) picked.push(p.id);
     }
-
-    // fallback if no GK or still short
     if (picked.length < 7) {
       const allSorted = [...squad].sort((a, b) => toNum(b.overall) - toNum(a.overall));
       for (const p of allSorted) {
@@ -260,7 +439,6 @@ async function main() {
         if (!picked.includes(p.id)) picked.push(p.id);
       }
     }
-
     progress.lineupStarterIds = picked.slice(0, 7);
   }
 
@@ -268,8 +446,9 @@ async function main() {
   if (!progress.managerClubId) progress.managerClubId = seed.clubs[0]?.id ?? null;
   if (progress.squadPlayerIds.length === 0) setDefaultSquadForClub(progress.managerClubId);
   if (progress.lineupStarterIds.length === 0) autoPickStarters();
-
   saveProgress(progress);
+
+  // ---------- Rendering ----------
 
   function renderManagerClub() {
     managerClubSelect.innerHTML = "";
@@ -451,10 +630,74 @@ async function main() {
     }
 
     const startersOk = progress.lineupStarterIds.length === 7 && hasGK(progress.lineupStarterIds);
-    trainSummary.textContent = `Dag ${progress.day} — training: starters 100%, bank 50% (via intensiteit). Opstelling ${startersOk ? "OK" : "niet compleet"}.`;
+    trainSummary.textContent = `Dag ${progress.day} — training: starters 100%, bank 50%. Opstelling ${startersOk ? "OK" : "niet compleet"}.`;
   }
 
-  // ===== Events =====
+  function renderLeague() {
+    const md = progress.league.currentMatchday;
+    const total = progress.league.schedule.length;
+
+    if (seasonHint) {
+      const seasonDone = md > total;
+      seasonHint.textContent = seasonDone
+        ? `Seizoen klaar. (${total}/${total} speeldagen gespeeld)`
+        : `Speeldag ${md}/${total} (training + wedstrijden bij “Volgende dag”)`;
+    }
+
+    // Today fixtures preview (before play)
+    fixturesBody.innerHTML = "";
+    const today = progress.league.schedule.find(x => x.day === md);
+    if (!today) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>Geen wedstrijden (seizoen klaar)</td><td>-</td>`;
+      fixturesBody.appendChild(tr);
+    } else {
+      for (const f of today.fixtures) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${clubsById[f.homeId]} vs ${clubsById[f.awayId]}</td><td>—</td>`;
+        fixturesBody.appendChild(tr);
+      }
+      if (today.fixtures.length === 0) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>Geen wedstrijden</td><td>-</td>`;
+        fixturesBody.appendChild(tr);
+      }
+    }
+
+    // Standings
+    standingsBody.innerHTML = "";
+    const rows = sortStandings(Object.values(progress.league.standingsByClubId));
+    rows.forEach((r, idx) => {
+      const gd = r.GF - r.GA;
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${idx + 1}</td>
+        <td>${clubsById[r.clubId] ?? r.clubId}</td>
+        <td>${r.W}</td><td>${r.D}</td><td>${r.L}</td>
+        <td>${r.GF}</td><td>${r.GA}</td><td>${gd}</td>
+        <td><strong>${r.P}</strong></td>
+      `;
+      standingsBody.appendChild(tr);
+    });
+
+    // Last day results
+    resultsBody.innerHTML = "";
+    const last = progress.league.lastDayResults || [];
+    if (last.length === 0) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>Nog geen uitslagen</td><td>-</td>`;
+      resultsBody.appendChild(tr);
+    } else {
+      for (const r of last) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${clubsById[r.homeId]} vs ${clubsById[r.awayId]}</td><td>${r.hg} - ${r.ag}</td>`;
+        resultsBody.appendChild(tr);
+      }
+    }
+  }
+
+  // ---------- Events ----------
+
   btnSaveManagerClub.addEventListener("click", () => {
     progress.managerClubId = managerClubSelect.value || null;
     setDefaultSquadForClub(progress.managerClubId);
@@ -493,20 +736,19 @@ async function main() {
   });
 
   btnNextDay.addEventListener("click", () => {
-    const startersOk = progress.lineupStarterIds.length === 7 && hasGK(progress.lineupStarterIds);
-
+    // 1) Training (user squad) — starters 100%, bench 50%
     const plan = { focus: trainFocus.value, intensity: trainIntensity.value };
     const squadSet = new Set(progress.squadPlayerIds);
     const starterSet = new Set(progress.lineupStarterIds);
 
-    let last = "";
+    let lastTraining = "";
 
     for (const p of seed.players) {
       if (!squadSet.has(p.id)) continue;
 
       const dyn = progress.dynByPlayerId[p.id];
-
       const isStarter = starterSet.has(p.id);
+
       const usedPlan = isStarter
         ? plan
         : { focus: plan.focus, intensity: downgradeIntensity(plan.intensity) };
@@ -520,17 +762,57 @@ async function main() {
       progress.playerStatsById[p.id] = { attack: p.attack, defense: p.defense };
       progress.dynByPlayerId[p.id] = out.dynPatch;
 
-      last = out.log;
+      lastTraining = out.log;
     }
 
+    // 2) Matches for current matchday
+    const md = progress.league.currentMatchday;
+    const total = progress.league.schedule.length;
+
+    const results = [];
+    if (md <= total) {
+      const today = progress.league.schedule.find(x => x.day === md);
+
+      // Build team effective ratings for today
+      for (const f of (today?.fixtures || [])) {
+        const homeId = f.homeId;
+        const awayId = f.awayId;
+
+        const homeStarters = (homeId === progress.managerClubId)
+          ? userStarters(seed.players, progress)
+          : teamStartersFromClub(seed.players, homeId);
+
+        const awayStarters = (awayId === progress.managerClubId)
+          ? userStarters(seed.players, progress)
+          : teamStartersFromClub(seed.players, awayId);
+
+        const hR = calcTeamRatings(homeStarters, progress.dynByPlayerId);
+        const aR = calcTeamRatings(awayStarters, progress.dynByPlayerId);
+
+        const { hg, ag } = simulateMatch(hR, aR);
+
+        applyResultToStandings(progress.league.standingsByClubId, homeId, awayId, hg, ag);
+        results.push({ homeId, awayId, hg, ag });
+      }
+
+      progress.league.lastDayResults = results;
+      progress.league.currentMatchday = md + 1;
+    } else {
+      // season ended
+      progress.league.lastDayResults = [];
+    }
+
+    // 3) Advance day + save + render
     progress.day += 1;
     saveProgress(progress);
 
     renderSquadTable();
     renderLineup();
     renderTrainingTable();
+    renderLeague();
 
-    trainSummary.textContent = `Dag ${progress.day - 1} verwerkt (${plan.focus}/${plan.intensity}) — starters 100%, bank 50%. ${startersOk ? "" : "Let op: opstelling niet compleet."} Laatste: ${last}`;
+    const startersOk = progress.lineupStarterIds.length === 7 && hasGK(progress.lineupStarterIds);
+    trainSummary.textContent = `Dag ${progress.day - 1} verwerkt: training (${plan.focus}/${plan.intensity}) + speeldag ${Math.min(md, total)}/${total}. Opstelling ${startersOk ? "OK" : "niet compleet"}. Laatste training: ${lastTraining}`;
   });
 
   btnResetProgress.addEventListener("click", () => {
@@ -544,6 +826,7 @@ async function main() {
   renderSquadTable();
   renderLineup();
   renderTrainingTable();
+  renderLeague();
 }
 
 main().catch(err => {
