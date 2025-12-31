@@ -103,6 +103,50 @@
       <p class="subtle">Regels (MVP): precies 7 starters, minimaal 1 GK. Bank = rest van selectie.</p>
     </section>
 
+    <!-- 3B) Competitie -->
+    <section class="card">
+      <h2>Competitie</h2>
+      <div class="hint" id="seasonHint"></div>
+
+      <h3 style="margin-top:10px;">Vandaag</h3>
+      <div class="tableWrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Wedstrijd</th><th>Uitslag</th>
+            </tr>
+          </thead>
+          <tbody id="fixturesBody"></tbody>
+        </table>
+      </div>
+
+      <h3 style="margin-top:14px;">Stand</h3>
+      <div class="tableWrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>#</th><th>Club</th><th>W</th><th>G</th><th>V</th><th>GF</th><th>GA</th><th>DS</th><th>P</th>
+            </tr>
+          </thead>
+          <tbody id="standingsBody"></tbody>
+        </table>
+      </div>
+
+      <h3 style="margin-top:14px;">Laatste speeldag</h3>
+      <div class="tableWrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Wedstrijd</th><th>Uitslag</th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody"></tbody>
+        </table>
+      </div>
+
+      <p class="subtle">Speelschema: dubbele competitie met 11 teams = 22 speeldagen (met elke speeldag 1 bye-team).</p>
+    </section>
+
     <!-- 4) Training -->
     <section class="card">
       <h2>Training</h2>
@@ -128,7 +172,7 @@
       </div>
 
       <div class="btns">
-        <button id="btnNextDay">Volgende dag (train)</button>
+        <button id="btnNextDay">Volgende dag (train + wedstrijden)</button>
         <button class="ghost" id="btnResetProgress">Reset voortgang</button>
       </div>
 
@@ -152,7 +196,7 @@
 
   </main>
 
-  <!-- cache-bust: dwingt browser nieuwe JS te laden -->
-  <script src="app.js?v=4"></script>
+  <!-- cache-bust -->
+  <script src="app.js?v=5"></script>
 </body>
 </html>
