@@ -1,8 +1,9 @@
 {
   "name": "OWM Waterpolo Manager",
-  "short_name": "OWM WP",
-  "start_url": "./",
+  "short_name": "OWM",
+  "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#071e33",
-  "theme_color": "#0b2a4a"
+  "background_color": "#071a2e",
+  "theme_color": "#0b2a4a",
+  "description": "Local-first Waterpolo Manager MVP"
 }
