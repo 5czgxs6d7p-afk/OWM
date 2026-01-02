@@ -1,4 +1,4 @@
-const CACHE = "owm-mvp-v3b1";
+const CACHE = "owm-mvp-v3b2";
 const ASSETS = [
   "./",
   "./index.html",
