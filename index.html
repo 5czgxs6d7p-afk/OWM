@@ -15,7 +15,7 @@
     <div class="wrap header-row">
       <div>
         <h1>OWM Waterpolo Manager</h1>
-        <div class="sub">MVP — Fase 3B (Stap 1): Planner + dagtype + stats-progressie</div>
+        <div class="sub">Fase 3B (Stap 2) — Dagelijkse wedstrijd + 4u training + dashboard + ranglijst</div>
       </div>
 
       <div class="header-actions">
@@ -27,76 +27,201 @@
   </header>
 
   <main class="wrap">
-    <section class="grid">
-      <div class="card">
-        <div class="card-head">
-          <h2>Dag</h2>
-          <div class="pill" id="dayPill">Dag 1</div>
-        </div>
+    <nav class="tabs">
+      <button class="tab active" data-tab="dashboard">Dashboard</button>
+      <button class="tab" data-tab="squad">Selectie</button>
+      <button class="tab" data-tab="training">Training</button>
+      <button class="tab" data-tab="standings">Ranglijst</button>
+      <button class="tab" data-tab="history">History</button>
+    </nav>
 
-        <div class="row two">
-          <div>
-            <label class="label">Datum (simulatie)</label>
-            <div class="value" id="simDate">—</div>
-          </div>
-          <div>
-            <label class="label">Budget</label>
-            <div class="value" id="budget">—</div>
-          </div>
-        </div>
-
-        <div class="row two">
-          <div>
-            <label class="label">Dagtype</label>
-            <select class="select" id="dayType">
-              <option value="rest">Rust</option>
-              <option value="training">Training</option>
-              <option value="match">Wedstrijd</option>
-            </select>
+    <!-- DASHBOARD -->
+    <section class="panel" id="tab-dashboard">
+      <div class="grid">
+        <div class="card">
+          <div class="card-head">
+            <h2>Vandaag</h2>
+            <div class="pill" id="pillDay">—</div>
           </div>
 
-          <div>
-            <label class="label">Training-focus (alleen Training)</label>
-            <select class="select" id="trainingFocus">
-              <option value="conditioning">Conditie</option>
-              <option value="strength">Kracht</option>
-              <option value="shooting">Schieten</option>
-              <option value="defense">Verdediging</option>
-              <option value="tactics">Tactiek</option>
-            </select>
+          <div class="row three">
+            <div class="kpi">
+              <div class="kpi-label">Server tijd</div>
+              <div class="kpi-value" id="kpiNow">—</div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">Match tijd (dagelijks)</div>
+              <div class="kpi-value" id="kpiMatchTime">—</div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">Volgende match</div>
+              <div class="kpi-value" id="kpiNextMatch">—</div>
+            </div>
+          </div>
+
+          <div class="row two">
+            <div class="note" id="matchNote">—</div>
+            <div class="note" id="trainingNote">—</div>
+          </div>
+
+          <div class="row two">
+            <button class="btn" id="btnSimulateMatchNow">Simuleer wedstrijd nu</button>
+            <button class="btn btn-ghost" id="btnSimulateDayNow">Simuleer dag (test)</button>
+          </div>
+
+          <div class="hr"></div>
+          <h3>Laatste uitslag</h3>
+          <div class="note" id="lastResult">Nog geen wedstrijden gespeeld.</div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>Wedstrijdselectie (7 posities)</h2>
+            <div class="muted">Deze selectie gebruikt de match-engine.</div>
+          </div>
+
+          <div class="row two">
+            <div>
+              <label class="label">GK</label>
+              <select class="select" id="selMatchGK"></select>
+            </div>
+            <div>
+              <label class="label">CB</label>
+              <select class="select" id="selMatchCB"></select>
+            </div>
+          </div>
+
+          <div class="row two">
+            <div>
+              <label class="label">CF</label>
+              <select class="select" id="selMatchCF"></select>
+            </div>
+            <div>
+              <label class="label">LD</label>
+              <select class="select" id="selMatchLD"></select>
+            </div>
+          </div>
+
+          <div class="row three">
+            <div>
+              <label class="label">LW</label>
+              <select class="select" id="selMatchLW"></select>
+            </div>
+            <div>
+              <label class="label">RW</label>
+              <select class="select" id="selMatchRW"></select>
+            </div>
+            <div>
+              <label class="label">RD</label>
+              <select class="select" id="selMatchRD"></select>
+            </div>
+          </div>
+
+          <div class="hr"></div>
+
+          <h3>Tactieken</h3>
+          <div class="row two">
+            <div>
+              <label class="label">Verdediging</label>
+              <select class="select" id="tacDefense">
+                <option value="zone">Zone</option>
+                <option value="press">Press</option>
+                <option value="mzone">M-Zone</option>
+              </select>
+            </div>
+            <div>
+              <label class="label">Aanval</label>
+              <select class="select" id="tacOffense">
+                <option value="balanced">Balanced</option>
+                <option value="center">Center-focused</option>
+                <option value="perimeter">Perimeter</option>
+                <option value="counter">Counter</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row two">
+            <div>
+              <label class="label">Tempo</label>
+              <select class="select" id="tacTempo">
+                <option value="low">Laag</option>
+                <option value="mid">Medium</option>
+                <option value="high">Hoog</option>
+              </select>
+            </div>
+            <div>
+              <label class="label">Risico</label>
+              <select class="select" id="tacRisk">
+                <option value="safe">Veilig</option>
+                <option value="normal">Normaal</option>
+                <option value="aggressive">Agressief</option>
+              </select>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>Team KPI</h2>
+            <div class="muted" id="teamMeta">—</div>
+          </div>
+
+          <div class="row three">
+            <div class="kpi">
+              <div class="kpi-label">Gem. fitness</div>
+              <div class="kpi-value" id="kpiFitness">—</div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">Blessures</div>
+              <div class="kpi-value" id="kpiInj">—</div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">Team rating</div>
+              <div class="kpi-value" id="kpiRating">—</div>
+            </div>
+          </div>
+
+          <div class="hr"></div>
+          <h3>Huidige positie</h3>
+          <div class="note" id="kpiStanding">—</div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>Ranglijst (top 8)</h2>
+            <div class="muted">Volledige lijst bij tab “Ranglijst”.</div>
+          </div>
+          <div class="table-wrap">
+            <table class="table" id="tableTop8">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Team</th>
+                  <th>P</th>
+                  <th>W</th>
+                  <th>D</th>
+                  <th>L</th>
+                  <th>GF</th>
+                  <th>GA</th>
+                  <th>GD</th>
+                  <th>Pts</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
           </div>
         </div>
 
-        <div class="row two">
-          <button class="btn" id="btnNextDay">Volgende dag</button>
-          <button class="btn btn-ghost" id="btnAuto7">Simuleer 7 dagen</button>
-        </div>
-
-        <div class="hr"></div>
-
-        <h3>Dag-samenvatting</h3>
-        <div class="note" id="daySummary">Kies een dagtype en ga naar de volgende dag.</div>
       </div>
+    </section>
 
+    <!-- SQUAD -->
+    <section class="panel hidden" id="tab-squad">
       <div class="card">
         <div class="card-head">
-          <h2>Team</h2>
-          <div class="muted" id="teamMeta">—</div>
-        </div>
-
-        <div class="row three">
-          <div class="kpi">
-            <div class="kpi-label">Gem. fitness</div>
-            <div class="kpi-value" id="avgFitness">—</div>
-          </div>
-          <div class="kpi">
-            <div class="kpi-label">Blessures</div>
-            <div class="kpi-value" id="injCount">—</div>
-          </div>
-          <div class="kpi">
-            <div class="kpi-label">Team rating</div>
-            <div class="kpi-value" id="teamRating">—</div>
-          </div>
+          <h2>Spelers</h2>
+          <div class="muted">Belangrijk: potential stuurt growth preview en training-gains.</div>
         </div>
 
         <div class="row">
@@ -106,6 +231,7 @@
                 <tr>
                   <th>Speler</th>
                   <th>Pos</th>
+                  <th>Potential</th>
                   <th>Fitness</th>
                   <th>Blessure</th>
                   <th>Rating</th>
@@ -120,7 +246,7 @@
         <div class="row">
           <details>
             <summary>Speler toevoegen</summary>
-            <div class="row two">
+            <div class="row three">
               <div>
                 <label class="label">Naam</label>
                 <input class="input" id="newName" placeholder="Bijv. Pascal" />
@@ -129,81 +255,202 @@
                 <label class="label">Positie</label>
                 <select class="select" id="newPos">
                   <option value="GK">GK</option>
-                  <option value="C">C</option>
-                  <option value="D">D</option>
-                  <option value="W">W</option>
+                  <option value="CB">CB</option>
+                  <option value="CF">CF</option>
+                  <option value="LD">LD</option>
+                  <option value="LW">LW</option>
+                  <option value="RW">RW</option>
+                  <option value="RD">RD</option>
                   <option value="U">U</option>
                 </select>
+              </div>
+              <div>
+                <label class="label">Potential (0-100)</label>
+                <input class="input" id="newPotential" type="number" min="0" max="100" value="70" />
               </div>
             </div>
             <button class="btn" id="btnAddPlayer">Toevoegen</button>
           </details>
         </div>
       </div>
+    </section>
 
-      <div class="card">
-        <div class="card-head">
-          <h2>Planner</h2>
-          <div class="muted">Stel standaard in per dag; wordt opgeslagen per save.</div>
+    <!-- TRAINING -->
+    <section class="panel hidden" id="tab-training">
+      <div class="grid">
+        <div class="card">
+          <div class="card-head">
+            <h2>Training (4 uur)</h2>
+            <div class="pill" id="pillTrainingStatus">—</div>
+          </div>
+
+          <div class="row two">
+            <div>
+              <label class="label">Training type</label>
+              <select class="select" id="trainingType">
+                <option value="conditioning">Conditie</option>
+                <option value="strength">Kracht</option>
+                <option value="shooting">Schieten</option>
+                <option value="defense">Verdediging</option>
+                <option value="tactics">Tactiek</option>
+                <option value="goalie">Keeper</option>
+              </select>
+            </div>
+            <div>
+              <label class="label">Duur</label>
+              <div class="value"><strong>4 uur</strong> (max. 1 training per dag)</div>
+            </div>
+          </div>
+
+          <div class="hr"></div>
+          <h3>Selecteer 1 speler per positie</h3>
+
+          <div class="row two">
+            <div>
+              <label class="label">GK</label>
+              <select class="select" id="selTrainGK"></select>
+            </div>
+            <div>
+              <label class="label">CB</label>
+              <select class="select" id="selTrainCB"></select>
+            </div>
+          </div>
+
+          <div class="row two">
+            <div>
+              <label class="label">CF</label>
+              <select class="select" id="selTrainCF"></select>
+            </div>
+            <div>
+              <label class="label">LD</label>
+              <select class="select" id="selTrainLD"></select>
+            </div>
+          </div>
+
+          <div class="row three">
+            <div>
+              <label class="label">LW</label>
+              <select class="select" id="selTrainLW"></select>
+            </div>
+            <div>
+              <label class="label">RW</label>
+              <select class="select" id="selTrainRW"></select>
+            </div>
+            <div>
+              <label class="label">RD</label>
+              <select class="select" id="selTrainRD"></select>
+            </div>
+          </div>
+
+          <div class="row two">
+            <button class="btn" id="btnPreviewTraining">Bekijk groei (preview)</button>
+            <button class="btn" id="btnDoTraining">Start training (4u)</button>
+          </div>
+
+          <div class="note" id="trainingPreview">Selecteer spelers en klik op preview.</div>
         </div>
 
-        <div class="row two">
-          <div>
-            <label class="label">Standaard dagtype</label>
-            <select class="select" id="defaultDayType">
-              <option value="rest">Rust</option>
-              <option value="training">Training</option>
-              <option value="match">Wedstrijd</option>
-            </select>
+        <div class="card">
+          <div class="card-head">
+            <h2>Regels</h2>
+            <div class="muted">OSM-achtig gedrag</div>
           </div>
-          <div>
-            <label class="label">Standaard training-focus</label>
-            <select class="select" id="defaultTrainingFocus">
-              <option value="conditioning">Conditie</option>
-              <option value="strength">Kracht</option>
-              <option value="shooting">Schieten</option>
-              <option value="defense">Verdediging</option>
-              <option value="tactics">Tactiek</option>
-            </select>
-          </div>
-        </div>
 
-        <div class="note">
-          Tip: Zet standaard op Training + Conditie en wissel handmatig op Wedstrijd wanneer je wilt.
-          In een volgende stap van Fase 3B kunnen we een echte kalender (7/14/28 dagen) toevoegen.
+          <div class="note">
+            <strong>Wedstrijd</strong>: elke dag op een vast tijdstip wordt 1 wedstrijd gesimuleerd (1 per kalenderdag).<br/>
+            <strong>Training</strong>: max. 1 training per dag en duurt 4 uur (in MVP betekent dat: zodra je traint is je dag “op”).<br/>
+            <strong>Potential</strong>: bepaalt growth preview en gerealiseerde gains.
+          </div>
+
+          <div class="hr"></div>
+          <h3>Planning</h3>
+          <div class="row two">
+            <div>
+              <label class="label">Dagelijkse match tijd</label>
+              <input class="input" id="matchTime" placeholder="HH:MM" />
+              <div class="muted">Voorbeeld: 20:00</div>
+            </div>
+            <div>
+              <label class="label">Competitie</label>
+              <div class="value" id="leagueInfo">—</div>
+            </div>
+          </div>
+
+          <div class="row">
+            <button class="btn btn-ghost" id="btnSaveMatchTime">Match tijd opslaan</button>
+          </div>
         </div>
       </div>
+    </section>
 
+    <!-- STANDINGS -->
+    <section class="panel hidden" id="tab-standings">
+      <div class="card">
+        <div class="card-head">
+          <h2>Ranglijst</h2>
+          <div class="muted">Punten: W=3, D=1, L=0</div>
+        </div>
+        <div class="table-wrap">
+          <table class="table" id="tableStandings">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Team</th>
+                <th>P</th>
+                <th>W</th>
+                <th>D</th>
+                <th>L</th>
+                <th>GF</th>
+                <th>GA</th>
+                <th>GD</th>
+                <th>Pts</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- HISTORY -->
+    <section class="panel hidden" id="tab-history">
       <div class="card">
         <div class="card-head">
           <h2>History</h2>
-          <div class="muted">Laatste 30 dagen</div>
+          <div class="muted">Laatste 30 events (training + match)</div>
         </div>
-
         <div id="history" class="history"></div>
       </div>
     </section>
 
+    <!-- IMPORT MODAL -->
     <div class="modal hidden" id="importModal" aria-hidden="true">
       <div class="modal-card">
         <div class="modal-head">
-          <h3>Import save (JSON)</h3>
+          <h3>Import save/spelers (JSON)</h3>
           <button class="btn btn-ghost" id="btnCloseImport">Sluiten</button>
         </div>
+
+        <div class="note">
+          Je kunt hier óf een volledige save plakken (export), óf alleen een spelerslijst.<br/>
+          Spelerslijst voorbeeld: <code>[{"name":"...","pos":"GK","potential":85,"fitness":90,"stats":{...}}]</code>
+        </div>
+
         <textarea class="textarea" id="importText" placeholder="Plak hier je JSON..."></textarea>
         <div class="row two">
           <button class="btn" id="btnDoImport">Importeren</button>
           <button class="btn btn-ghost" id="btnClearImport">Leegmaken</button>
         </div>
-        <div class="note" id="importNote">Let op: import overschrijft je huidige save.</div>
+        <div class="note" id="importNote">Let op: import kan je huidige save overschrijven.</div>
       </div>
     </div>
+
   </main>
 
   <footer class="footer">
     <div class="wrap footer-row">
       <div class="muted">Local-first (localStorage). Geen account nodig.</div>
-      <div class="muted">OWM MVP — Fase 3B Stap 1</div>
+      <div class="muted">OWM MVP — Fase 3B Stap 2</div>
     </div>
   </footer>
 
