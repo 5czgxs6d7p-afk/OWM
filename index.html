@@ -29,6 +29,7 @@
   <main class="wrap">
     <nav class="tabs">
       <button class="tab active" data-tab="dashboard">Dashboard</button>
+      <button class="tab" data-tab="match">Wedstrijd</button>
       <button class="tab" data-tab="squad">Selectie</button>
       <button class="tab" data-tab="training">Training</button>
       <button class="tab" data-tab="standings">Ranglijst</button>
@@ -72,6 +73,111 @@
           <div class="hr"></div>
           <h3>Laatste uitslag</h3>
           <div class="note" id="lastResult">Nog geen wedstrijden gespeeld.</div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>Thema's</h2>
+            <div class="muted">OSM-stijl navigatie</div>
+          </div>
+          <div class="theme-grid">
+            <button class="nav-card" data-tab="training">
+              <div class="nav-title">Training</div>
+              <div class="nav-meta" id="navTrainingMeta">—</div>
+            </button>
+            <button class="nav-card" data-tab="match">
+              <div class="nav-title">Wedstrijdselectie & tactiek</div>
+              <div class="nav-meta" id="navMatchMeta">—</div>
+            </button>
+            <button class="nav-card" data-tab="squad">
+              <div class="nav-title">Spelersselectie</div>
+              <div class="nav-meta" id="navSquadMeta">—</div>
+            </button>
+            <button class="nav-card" data-tab="standings">
+              <div class="nav-title">Ranglijst</div>
+              <div class="nav-meta">Bekijk de competitie</div>
+            </button>
+            <button class="nav-card" data-tab="history">
+              <div class="nav-title">Wedstrijdhistorie</div>
+              <div class="nav-meta">Laatste updates</div>
+            </button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>Team KPI</h2>
+            <div class="muted" id="teamMeta">—</div>
+          </div>
+
+          <div class="row three">
+            <div class="kpi">
+              <div class="kpi-label">Gem. fitness</div>
+              <div class="kpi-value" id="kpiFitness">—</div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">Blessures</div>
+              <div class="kpi-value" id="kpiInj">—</div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">Team rating</div>
+              <div class="kpi-value" id="kpiRating">—</div>
+            </div>
+          </div>
+
+          <div class="hr"></div>
+          <h3>Huidige positie</h3>
+          <div class="note" id="kpiStanding">—</div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>Ranglijst (top 8)</h2>
+            <div class="muted">Volledige lijst bij tab “Ranglijst”.</div>
+          </div>
+          <div class="table-wrap">
+            <table class="table" id="tableTop8">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Team</th>
+                  <th>P</th>
+                  <th>W</th>
+                  <th>D</th>
+                  <th>L</th>
+                  <th>GF</th>
+                  <th>GA</th>
+                  <th>GD</th>
+                  <th>Pts</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- MATCH -->
+    <section class="panel hidden" id="tab-match">
+      <div class="grid">
+        <div class="card">
+          <div class="card-head">
+            <h2>Volgende wedstrijd</h2>
+            <div class="pill" id="pillNextOpponent">—</div>
+          </div>
+          <div class="note" id="nextMatchSummary">—</div>
+          <div class="row two">
+            <div>
+              <span class="label">Match tijd</span>
+              <div class="value" id="nextMatchTime">—</div>
+            </div>
+            <div>
+              <span class="label">Match status</span>
+              <div class="value" id="nextMatchStatus">—</div>
+            </div>
+          </div>
         </div>
 
         <div class="card">
@@ -158,61 +264,7 @@
               </select>
             </div>
           </div>
-
         </div>
-
-        <div class="card">
-          <div class="card-head">
-            <h2>Team KPI</h2>
-            <div class="muted" id="teamMeta">—</div>
-          </div>
-
-          <div class="row three">
-            <div class="kpi">
-              <div class="kpi-label">Gem. fitness</div>
-              <div class="kpi-value" id="kpiFitness">—</div>
-            </div>
-            <div class="kpi">
-              <div class="kpi-label">Blessures</div>
-              <div class="kpi-value" id="kpiInj">—</div>
-            </div>
-            <div class="kpi">
-              <div class="kpi-label">Team rating</div>
-              <div class="kpi-value" id="kpiRating">—</div>
-            </div>
-          </div>
-
-          <div class="hr"></div>
-          <h3>Huidige positie</h3>
-          <div class="note" id="kpiStanding">—</div>
-        </div>
-
-        <div class="card">
-          <div class="card-head">
-            <h2>Ranglijst (top 8)</h2>
-            <div class="muted">Volledige lijst bij tab “Ranglijst”.</div>
-          </div>
-          <div class="table-wrap">
-            <table class="table" id="tableTop8">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Team</th>
-                  <th>P</th>
-                  <th>W</th>
-                  <th>D</th>
-                  <th>L</th>
-                  <th>GF</th>
-                  <th>GA</th>
-                  <th>GD</th>
-                  <th>Pts</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </div>
-
       </div>
     </section>
 
