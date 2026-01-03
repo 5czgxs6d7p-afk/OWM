@@ -3,11 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>OWM Waterpolo Manager (MVP)</title>
+  <title>OWM Waterpolo Manager</title>
 
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0b2a4a" />
-
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -15,7 +14,7 @@
     <div class="wrap header-row">
       <div>
         <h1>OWM Waterpolo Manager</h1>
-        <div class="sub">Fase 3B (Stap 2) — Dagelijkse wedstrijd + 4u training + dashboard + ranglijst</div>
+        <div class="sub">Dashboard-first (OSM-ervaring) — v3b3</div>
       </div>
 
       <div class="header-actions">
@@ -27,21 +26,14 @@
   </header>
 
   <main class="wrap">
-    <nav class="tabs">
-      <button class="tab active" data-tab="dashboard">Dashboard</button>
-      <button class="tab" data-tab="squad">Selectie</button>
-      <button class="tab" data-tab="training">Training</button>
-      <button class="tab" data-tab="standings">Ranglijst</button>
-      <button class="tab" data-tab="history">History</button>
-    </nav>
 
     <!-- DASHBOARD -->
-    <section class="panel" id="tab-dashboard">
+    <section class="panel" id="view-dashboard">
       <div class="grid">
-        <div class="card">
+        <div class="card span2">
           <div class="card-head">
             <h2>Vandaag</h2>
-            <div class="pill" id="pillDay">—</div>
+            <div class="pill" id="pillToday">—</div>
           </div>
 
           <div class="row three">
@@ -50,8 +42,8 @@
               <div class="kpi-value" id="kpiNow">—</div>
             </div>
             <div class="kpi">
-              <div class="kpi-label">Match tijd (dagelijks)</div>
-              <div class="kpi-value" id="kpiMatchTime">—</div>
+              <div class="kpi-label">Dagelijkse match</div>
+              <div class="kpi-value" id="kpiMatchTime">19:00</div>
             </div>
             <div class="kpi">
               <div class="kpi-label">Volgende match</div>
@@ -60,105 +52,18 @@
           </div>
 
           <div class="row two">
-            <div class="note" id="matchNote">—</div>
-            <div class="note" id="trainingNote">—</div>
+            <div class="note" id="noteMatch">—</div>
+            <div class="note" id="noteTraining">—</div>
           </div>
 
           <div class="row two">
-            <button class="btn" id="btnSimulateMatchNow">Simuleer wedstrijd nu</button>
-            <button class="btn btn-ghost" id="btnSimulateDayNow">Simuleer dag (test)</button>
+            <button class="btn" id="btnSimMatchNow">Simuleer wedstrijd nu</button>
+            <button class="btn btn-ghost" id="btnTickNow">Refresh (check match)</button>
           </div>
 
           <div class="hr"></div>
           <h3>Laatste uitslag</h3>
           <div class="note" id="lastResult">Nog geen wedstrijden gespeeld.</div>
-        </div>
-
-        <div class="card">
-          <div class="card-head">
-            <h2>Wedstrijdselectie (7 posities)</h2>
-            <div class="muted">Deze selectie gebruikt de match-engine.</div>
-          </div>
-
-          <div class="row two">
-            <div>
-              <label class="label">GK</label>
-              <select class="select" id="selMatchGK"></select>
-            </div>
-            <div>
-              <label class="label">CB</label>
-              <select class="select" id="selMatchCB"></select>
-            </div>
-          </div>
-
-          <div class="row two">
-            <div>
-              <label class="label">CF</label>
-              <select class="select" id="selMatchCF"></select>
-            </div>
-            <div>
-              <label class="label">LD</label>
-              <select class="select" id="selMatchLD"></select>
-            </div>
-          </div>
-
-          <div class="row three">
-            <div>
-              <label class="label">LW</label>
-              <select class="select" id="selMatchLW"></select>
-            </div>
-            <div>
-              <label class="label">RW</label>
-              <select class="select" id="selMatchRW"></select>
-            </div>
-            <div>
-              <label class="label">RD</label>
-              <select class="select" id="selMatchRD"></select>
-            </div>
-          </div>
-
-          <div class="hr"></div>
-
-          <h3>Tactieken</h3>
-          <div class="row two">
-            <div>
-              <label class="label">Verdediging</label>
-              <select class="select" id="tacDefense">
-                <option value="zone">Zone</option>
-                <option value="press">Press</option>
-                <option value="mzone">M-Zone</option>
-              </select>
-            </div>
-            <div>
-              <label class="label">Aanval</label>
-              <select class="select" id="tacOffense">
-                <option value="balanced">Balanced</option>
-                <option value="center">Center-focused</option>
-                <option value="perimeter">Perimeter</option>
-                <option value="counter">Counter</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="row two">
-            <div>
-              <label class="label">Tempo</label>
-              <select class="select" id="tacTempo">
-                <option value="low">Laag</option>
-                <option value="mid">Medium</option>
-                <option value="high">Hoog</option>
-              </select>
-            </div>
-            <div>
-              <label class="label">Risico</label>
-              <select class="select" id="tacRisk">
-                <option value="safe">Veilig</option>
-                <option value="normal">Normaal</option>
-                <option value="aggressive">Agressief</option>
-              </select>
-            </div>
-          </div>
-
         </div>
 
         <div class="card">
@@ -190,22 +95,13 @@
         <div class="card">
           <div class="card-head">
             <h2>Ranglijst (top 8)</h2>
-            <div class="muted">Volledige lijst bij tab “Ranglijst”.</div>
+            <div class="muted">Klik tegel Ranglijst voor volledig overzicht.</div>
           </div>
           <div class="table-wrap">
             <table class="table" id="tableTop8">
               <thead>
                 <tr>
-                  <th>#</th>
-                  <th>Team</th>
-                  <th>P</th>
-                  <th>W</th>
-                  <th>D</th>
-                  <th>L</th>
-                  <th>GF</th>
-                  <th>GA</th>
-                  <th>GD</th>
-                  <th>Pts</th>
+                  <th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th>
                 </tr>
               </thead>
               <tbody></tbody>
@@ -213,75 +109,58 @@
           </div>
         </div>
 
-      </div>
-    </section>
-
-    <!-- SQUAD -->
-    <section class="panel hidden" id="tab-squad">
-      <div class="card">
-        <div class="card-head">
-          <h2>Spelers</h2>
-          <div class="muted">Belangrijk: potential stuurt growth preview en training-gains.</div>
+        <!-- DASHBOARD TEGELS -->
+        <div class="card tile" data-go="training">
+          <div class="tile-title">Training</div>
+          <div class="tile-sub" id="tileTrainingSub">—</div>
+          <div class="tile-cta">Open</div>
         </div>
 
-        <div class="row">
-          <div class="table-wrap">
-            <table class="table" id="playersTable">
-              <thead>
-                <tr>
-                  <th>Speler</th>
-                  <th>Pos</th>
-                  <th>Potential</th>
-                  <th>Fitness</th>
-                  <th>Blessure</th>
-                  <th>Rating</th>
-                  <th>Acties</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
+        <div class="card tile" data-go="match">
+          <div class="tile-title">Wedstrijdselectie</div>
+          <div class="tile-sub">Selecteer GK/CB/CF/LD/LW/RW/RD</div>
+          <div class="tile-cta">Open</div>
         </div>
 
-        <div class="row">
-          <details>
-            <summary>Speler toevoegen</summary>
-            <div class="row three">
-              <div>
-                <label class="label">Naam</label>
-                <input class="input" id="newName" placeholder="Bijv. Pascal" />
-              </div>
-              <div>
-                <label class="label">Positie</label>
-                <select class="select" id="newPos">
-                  <option value="GK">GK</option>
-                  <option value="CB">CB</option>
-                  <option value="CF">CF</option>
-                  <option value="LD">LD</option>
-                  <option value="LW">LW</option>
-                  <option value="RW">RW</option>
-                  <option value="RD">RD</option>
-                  <option value="U">U</option>
-                </select>
-              </div>
-              <div>
-                <label class="label">Potential (0-100)</label>
-                <input class="input" id="newPotential" type="number" min="0" max="100" value="70" />
-              </div>
-            </div>
-            <button class="btn" id="btnAddPlayer">Toevoegen</button>
-          </details>
+        <div class="card tile" data-go="tactics">
+          <div class="tile-title">Tactieken</div>
+          <div class="tile-sub">Verdediging, aanval, tempo, risico</div>
+          <div class="tile-cta">Open</div>
         </div>
+
+        <div class="card tile" data-go="squad">
+          <div class="tile-title">Selectie</div>
+          <div class="tile-sub">Spelerslijst + potential</div>
+          <div class="tile-cta">Open</div>
+        </div>
+
+        <div class="card tile" data-go="standings">
+          <div class="tile-title">Ranglijst</div>
+          <div class="tile-sub">Competitie, punten, doelsaldo</div>
+          <div class="tile-cta">Open</div>
+        </div>
+
+        <div class="card tile" data-go="history">
+          <div class="tile-title">History</div>
+          <div class="tile-sub">Training + wedstrijden (laatste 30)</div>
+          <div class="tile-cta">Open</div>
+        </div>
+
       </div>
     </section>
 
     <!-- TRAINING -->
-    <section class="panel hidden" id="tab-training">
+    <section class="panel hidden" id="view-training">
+      <div class="topbar">
+        <button class="btn btn-ghost" data-back>← Dashboard</button>
+        <div class="topbar-title">Training</div>
+      </div>
+
       <div class="grid">
         <div class="card">
           <div class="card-head">
             <h2>Training (4 uur)</h2>
-            <div class="pill" id="pillTrainingStatus">—</div>
+            <div class="pill" id="pillTraining">—</div>
           </div>
 
           <div class="row two">
@@ -297,54 +176,32 @@
               </select>
             </div>
             <div>
-              <label class="label">Duur</label>
-              <div class="value"><strong>4 uur</strong> (max. 1 training per dag)</div>
+              <label class="label">Timer</label>
+              <div class="value" id="trainingTimer">—</div>
+              <div class="muted">Tijdens training kun je geen selectie wijzigen.</div>
             </div>
           </div>
 
           <div class="hr"></div>
-          <h3>Selecteer 1 speler per positie</h3>
+          <h3>1 speler per positie</h3>
 
           <div class="row two">
-            <div>
-              <label class="label">GK</label>
-              <select class="select" id="selTrainGK"></select>
-            </div>
-            <div>
-              <label class="label">CB</label>
-              <select class="select" id="selTrainCB"></select>
-            </div>
+            <div><label class="label">GK</label><select class="select" id="selTrainGK"></select></div>
+            <div><label class="label">CB</label><select class="select" id="selTrainCB"></select></div>
           </div>
-
           <div class="row two">
-            <div>
-              <label class="label">CF</label>
-              <select class="select" id="selTrainCF"></select>
-            </div>
-            <div>
-              <label class="label">LD</label>
-              <select class="select" id="selTrainLD"></select>
-            </div>
+            <div><label class="label">CF</label><select class="select" id="selTrainCF"></select></div>
+            <div><label class="label">LD</label><select class="select" id="selTrainLD"></select></div>
           </div>
-
           <div class="row three">
-            <div>
-              <label class="label">LW</label>
-              <select class="select" id="selTrainLW"></select>
-            </div>
-            <div>
-              <label class="label">RW</label>
-              <select class="select" id="selTrainRW"></select>
-            </div>
-            <div>
-              <label class="label">RD</label>
-              <select class="select" id="selTrainRD"></select>
-            </div>
+            <div><label class="label">LW</label><select class="select" id="selTrainLW"></select></div>
+            <div><label class="label">RW</label><select class="select" id="selTrainRW"></select></div>
+            <div><label class="label">RD</label><select class="select" id="selTrainRD"></select></div>
           </div>
 
           <div class="row two">
             <button class="btn" id="btnPreviewTraining">Bekijk groei (preview)</button>
-            <button class="btn" id="btnDoTraining">Start training (4u)</button>
+            <button class="btn" id="btnStartTraining">Start training</button>
           </div>
 
           <div class="note" id="trainingPreview">Selecteer spelers en klik op preview.</div>
@@ -353,57 +210,154 @@
         <div class="card">
           <div class="card-head">
             <h2>Regels</h2>
-            <div class="muted">OSM-achtig gedrag</div>
+            <div class="muted">OSM-gevoel</div>
           </div>
-
           <div class="note">
-            <strong>Wedstrijd</strong>: elke dag op een vast tijdstip wordt 1 wedstrijd gesimuleerd (1 per kalenderdag).<br/>
-            <strong>Training</strong>: max. 1 training per dag en duurt 4 uur (in MVP betekent dat: zodra je traint is je dag “op”).<br/>
-            <strong>Potential</strong>: bepaalt growth preview en gerealiseerde gains.
-          </div>
-
-          <div class="hr"></div>
-          <h3>Planning</h3>
-          <div class="row two">
-            <div>
-              <label class="label">Dagelijkse match tijd</label>
-              <input class="input" id="matchTime" placeholder="HH:MM" />
-              <div class="muted">Voorbeeld: 20:00</div>
-            </div>
-            <div>
-              <label class="label">Competitie</label>
-              <div class="value" id="leagueInfo">—</div>
-            </div>
-          </div>
-
-          <div class="row">
-            <button class="btn btn-ghost" id="btnSaveMatchTime">Match tijd opslaan</button>
+            <strong>Match</strong>: elke dag om <strong>19:00</strong> wordt 1 wedstrijd gesimuleerd (max 1 per kalenderdag).<br/>
+            <strong>Training</strong>: duurt 4 uur. Pas na afloop kun je nieuwe spelers selecteren en opnieuw trainen.<br/>
+            <strong>Potential</strong>: bepaalt preview en gain.
           </div>
         </div>
       </div>
     </section>
 
+    <!-- MATCH SELECTION -->
+    <section class="panel hidden" id="view-match">
+      <div class="topbar">
+        <button class="btn btn-ghost" data-back>← Dashboard</button>
+        <div class="topbar-title">Wedstrijdselectie</div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Opstelling (7 posities)</h2>
+          <div class="muted">Deze selectie gebruikt de match-engine.</div>
+        </div>
+
+        <div class="row two">
+          <div><label class="label">GK</label><select class="select" id="selMatchGK"></select></div>
+          <div><label class="label">CB</label><select class="select" id="selMatchCB"></select></div>
+        </div>
+        <div class="row two">
+          <div><label class="label">CF</label><select class="select" id="selMatchCF"></select></div>
+          <div><label class="label">LD</label><select class="select" id="selMatchLD"></select></div>
+        </div>
+        <div class="row three">
+          <div><label class="label">LW</label><select class="select" id="selMatchLW"></select></div>
+          <div><label class="label">RW</label><select class="select" id="selMatchRW"></select></div>
+          <div><label class="label">RD</label><select class="select" id="selMatchRD"></select></div>
+        </div>
+
+        <div class="hr"></div>
+        <div class="note" id="matchLineupNote">Tip: zorg dat alle posities gevuld zijn vóór 19:00.</div>
+      </div>
+    </section>
+
+    <!-- TACTICS -->
+    <section class="panel hidden" id="view-tactics">
+      <div class="topbar">
+        <button class="btn btn-ghost" data-back>← Dashboard</button>
+        <div class="topbar-title">Tactieken</div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Tactieken</h2>
+          <div class="muted">Heeft impact op match-uitkomst (MVP).</div>
+        </div>
+
+        <div class="row two">
+          <div>
+            <label class="label">Verdediging</label>
+            <select class="select" id="tacDefense">
+              <option value="zone">Zone</option>
+              <option value="press">Press</option>
+              <option value="mzone">M-Zone</option>
+            </select>
+          </div>
+          <div>
+            <label class="label">Aanval</label>
+            <select class="select" id="tacOffense">
+              <option value="balanced">Balanced</option>
+              <option value="center">Center-focused</option>
+              <option value="perimeter">Perimeter</option>
+              <option value="counter">Counter</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row two">
+          <div>
+            <label class="label">Tempo</label>
+            <select class="select" id="tacTempo">
+              <option value="low">Laag</option>
+              <option value="mid">Medium</option>
+              <option value="high">Hoog</option>
+            </select>
+          </div>
+          <div>
+            <label class="label">Risico</label>
+            <select class="select" id="tacRisk">
+              <option value="safe">Veilig</option>
+              <option value="normal">Normaal</option>
+              <option value="aggressive">Agressief</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="note" id="tacticsNote">—</div>
+      </div>
+    </section>
+
+    <!-- SQUAD -->
+    <section class="panel hidden" id="view-squad">
+      <div class="topbar">
+        <button class="btn btn-ghost" data-back>← Dashboard</button>
+        <div class="topbar-title">Selectie</div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Spelers</h2>
+          <div class="muted">Potential stuurt growth preview en training-gains.</div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="table" id="playersTable">
+            <thead>
+              <tr>
+                <th>Speler</th>
+                <th>Pos</th>
+                <th>Potential</th>
+                <th>Fitness</th>
+                <th>Blessure</th>
+                <th>Rating</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
     <!-- STANDINGS -->
-    <section class="panel hidden" id="tab-standings">
+    <section class="panel hidden" id="view-standings">
+      <div class="topbar">
+        <button class="btn btn-ghost" data-back>← Dashboard</button>
+        <div class="topbar-title">Ranglijst</div>
+      </div>
+
       <div class="card">
         <div class="card-head">
           <h2>Ranglijst</h2>
           <div class="muted">Punten: W=3, D=1, L=0</div>
         </div>
+
         <div class="table-wrap">
           <table class="table" id="tableStandings">
             <thead>
               <tr>
-                <th>#</th>
-                <th>Team</th>
-                <th>P</th>
-                <th>W</th>
-                <th>D</th>
-                <th>L</th>
-                <th>GF</th>
-                <th>GA</th>
-                <th>GD</th>
-                <th>Pts</th>
+                <th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -413,11 +367,16 @@
     </section>
 
     <!-- HISTORY -->
-    <section class="panel hidden" id="tab-history">
+    <section class="panel hidden" id="view-history">
+      <div class="topbar">
+        <button class="btn btn-ghost" data-back>← Dashboard</button>
+        <div class="topbar-title">History</div>
+      </div>
+
       <div class="card">
         <div class="card-head">
           <h2>History</h2>
-          <div class="muted">Laatste 30 events (training + match)</div>
+          <div class="muted">Laatste 30 events</div>
         </div>
         <div id="history" class="history"></div>
       </div>
@@ -427,13 +386,12 @@
     <div class="modal hidden" id="importModal" aria-hidden="true">
       <div class="modal-card">
         <div class="modal-head">
-          <h3>Import save/spelers (JSON)</h3>
+          <h3>Import (JSON)</h3>
           <button class="btn btn-ghost" id="btnCloseImport">Sluiten</button>
         </div>
 
         <div class="note">
-          Je kunt hier óf een volledige save plakken (export), óf alleen een spelerslijst.<br/>
-          Spelerslijst voorbeeld: <code>[{"name":"...","pos":"GK","potential":85,"fitness":90,"stats":{...}}]</code>
+          Plak óf een volledige save (export), óf een spelerslijst-array (zoals jouw omgezette JSON).
         </div>
 
         <textarea class="textarea" id="importText" placeholder="Plak hier je JSON..."></textarea>
@@ -441,7 +399,7 @@
           <button class="btn" id="btnDoImport">Importeren</button>
           <button class="btn btn-ghost" id="btnClearImport">Leegmaken</button>
         </div>
-        <div class="note" id="importNote">Let op: import kan je huidige save overschrijven.</div>
+        <div class="note" id="importNote">Let op: import kan overschrijven.</div>
       </div>
     </div>
 
@@ -450,7 +408,7 @@
   <footer class="footer">
     <div class="wrap footer-row">
       <div class="muted">Local-first (localStorage). Geen account nodig.</div>
-      <div class="muted">OWM MVP — Fase 3B Stap 2</div>
+      <div class="muted">OWM MVP — Dashboard-first v3b3</div>
     </div>
   </footer>
 
