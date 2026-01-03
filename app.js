@@ -129,6 +129,17 @@ function createLeague(){
   };
 }
 
+function nextOpponent(){
+  const league = state?.league;
+  if(!league?.teams?.length) return null;
+  const opponent = league.teams[league.rotationIndex % league.teams.length];
+  if(!opponent) return null;
+  if(opponent.id === "OWM"){
+    return league.teams[(league.rotationIndex + 1) % league.teams.length];
+  }
+  return opponent;
+}
+
 function sortStandings(standingsMap){
   const arr = Object.values(standingsMap).map(r => ({...r, GD: r.GF - r.GA}));
   arr.sort((a,b) => {
@@ -587,6 +598,7 @@ const ui = {
   tabs: Array.from(document.querySelectorAll(".tab")),
   panels: {
     dashboard: document.getElementById("tab-dashboard"),
+    match: document.getElementById("tab-match"),
     squad: document.getElementById("tab-squad"),
     training: document.getElementById("tab-training"),
     standings: document.getElementById("tab-standings"),
@@ -602,6 +614,15 @@ const ui = {
   btnSimulateMatchNow: document.getElementById("btnSimulateMatchNow"),
   btnSimulateDayNow: document.getElementById("btnSimulateDayNow"),
   lastResult: document.getElementById("lastResult"),
+
+  navTrainingMeta: document.getElementById("navTrainingMeta"),
+  navMatchMeta: document.getElementById("navMatchMeta"),
+  navSquadMeta: document.getElementById("navSquadMeta"),
+
+  pillNextOpponent: document.getElementById("pillNextOpponent"),
+  nextMatchSummary: document.getElementById("nextMatchSummary"),
+  nextMatchTime: document.getElementById("nextMatchTime"),
+  nextMatchStatus: document.getElementById("nextMatchStatus"),
 
   // dashboard lineup
   selMatch: {
@@ -791,6 +812,27 @@ function renderDashboard(){
   } else {
     ui.lastResult.textContent = "Nog geen wedstrijden gespeeld.";
   }
+
+  const nextOpp = nextOpponent();
+  const trained = (state.lastTrainingDate === today);
+  const missingLineup = POS_MATCH.filter(pos => !state.matchLineup[pos]);
+  ui.navTrainingMeta.textContent = trained ? "Vandaag getraind" : "Training beschikbaar";
+  ui.navMatchMeta.textContent = nextOpp ? `${nextOpp.name} • ${state.matchTimeHHMM || "tijd?"}` : "Geen wedstrijd gepland";
+  ui.navSquadMeta.textContent = `${players.length} spelers in team`;
+}
+
+function renderMatch(){
+  const nextOpp = nextOpponent();
+  const nm = nextMatchDateTime();
+  const today = isoDate();
+  const already = (state.league.lastMatchDate === today);
+
+  ui.pillNextOpponent.textContent = nextOpp ? `vs ${nextOpp.name}` : "—";
+  ui.nextMatchSummary.textContent = nextOpp
+    ? `Eerstvolgende tegenstander: ${nextOpp.name}.`
+    : "Geen tegenstander gevonden.";
+  ui.nextMatchTime.textContent = nm ? `${formatISO(isoDate(nm))} ${pad2(nm.getHours())}:${pad2(nm.getMinutes())}` : "Niet ingesteld";
+  ui.nextMatchStatus.textContent = already ? "Vandaag al gespeeld" : "In afwachting";
 }
 
 function renderSquad(){
@@ -916,6 +958,7 @@ function renderAll(){
   if(owmTeam) owmTeam.rating = owmLineupRating;
 
   renderDashboard();
+  renderMatch();
   renderSquad();
   renderTraining();
   renderStandings();
@@ -927,6 +970,15 @@ function renderAll(){
 ui.tabs.forEach(btn=>{
   btn.addEventListener("click", ()=>{
     renderTabs(btn.dataset.tab);
+  });
+});
+
+document.querySelectorAll(".nav-card").forEach(card=>{
+  card.addEventListener("click", ()=>{
+    const tab = card.dataset.tab;
+    if(tab){
+      renderTabs(tab);
+    }
   });
 });
 
